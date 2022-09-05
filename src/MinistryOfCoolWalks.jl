@@ -1,5 +1,4 @@
 module MinistryOfCoolWalks
-
-# Write your package code here.
-
+    export sunposition
+    include("SunPosition.jl")
 end
