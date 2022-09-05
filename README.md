@@ -1,1 +1,1 @@
-# MinistryOfCoolWalks
+# MinistryOfCoolWalks.jl
