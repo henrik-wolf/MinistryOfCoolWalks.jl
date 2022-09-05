@@ -1,0 +1,13 @@
+name = "MinistryOfCoolWalks"
+uuid = "8af523f7-f13f-4fcd-8beb-cc917078799e"
+authors = ["Henrik Wolf <henrik-wolf@freenet.de> and contributors"]
+version = "0.1.0"
+
+[compat]
+julia = "1.8"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
