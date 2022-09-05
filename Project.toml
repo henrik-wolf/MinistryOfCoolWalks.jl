@@ -3,6 +3,9 @@ uuid = "8af523f7-f13f-4fcd-8beb-cc917078799e"
 authors = ["Henrik Wolf <henrik-wolf@freenet.de> and contributors"]
 version = "0.1.0"
 
+[deps]
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+
 [compat]
 julia = "1.8"
 

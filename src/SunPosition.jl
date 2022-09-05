@@ -1,3 +1,4 @@
+using Dates
 #= Functions to calculate the sun position, adapted from
     Roberto Grena (2012), Five new algorithms for the computation of sun position
     from 2010 to 2110, Solar Energy, 86(5):1323–1337, doi:10.1016/j.solener.2012.01.024.
@@ -5,29 +6,41 @@
     some of the inputs where omitted, since we do not need the precision to launch satellites
     =#
 
+function sunposition(date::DateTime, longitude, latitude, timezone::Int=1, daylight_saving::Bool=true)
+    u_date = date - Hour(timezone + daylight_saving)
+    t_2060 = date_from_2060(u_date)
+    return _sunposition(t_2060, longitude, latitude)
+end
+
 # omitted: TT-UT, pressure, temperature
-function sunposition(time, day, month, year, longitude, latitude, timezone=1, daylight_saving=true)
+function sunposition(time, day::Int, month::Int, year::Int, longitude, latitude, timezone::Int=1, daylight_saving::Bool=true)
     #=local time in hours. You have to convert miniutes and seconds to fractions of an hour. from 0 to 24.
     longitude in radians from 0 to 2π, starting at greenwith, goint to the east.
     latitude in radians from -π/2 to π/2, starting from the south pole, going north.=#
 
-    ut = time - timezone
-    if daylight_saving
-        ut -= 1
-    end
-
+    ut = time - (timezone + daylight_saving)
     t_2060 = date_from_2060(ut, day, month, year)
+    return _sunposition(t_2060, longitude, latitude)
+end
+
+function _sunposition(t_2060, longitude, latitude)
     right_ascension, declination, hour_angle = algorithm_1(t_2060, longitude)
     elevation, azimuth = get_local_sun_pos(latitude, declination, hour_angle)
     # convert sun position from spherical coordinates to cartesian coordinates
     x = -sin(azimuth) * cos(elevation)
     y = -cos(azimuth) * cos(elevation)
     z = sin(elevation)
-    
     return [x,y,z]
 end
 
-function date_from_2060(ut, day, month, year)
+const dt2060 = DateTime(2060)
+
+function date_from_2060(date::DateTime)
+    t = (date - dt2060).value / 86400000.0
+    return t
+end
+
+function date_from_2060(ut, day::Int, month::Int, year::Int)
     if month <= 2
         m̃ = month + 12
         ỹ = year - 1
