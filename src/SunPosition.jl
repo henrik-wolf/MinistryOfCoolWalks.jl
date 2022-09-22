@@ -1,4 +1,3 @@
-using Dates
 #= Functions to calculate the sun position, adapted from
     Roberto Grena (2012), Five new algorithms for the computation of sun position
     from 2010 to 2110, Solar Energy, 86(5):1323–1337, doi:10.1016/j.solener.2012.01.024.
@@ -15,7 +14,7 @@ end
 # omitted: TT-UT, pressure, temperature
 function sunposition(time, day::Int, month::Int, year::Int, longitude, latitude, timezone::Int=1, daylight_saving::Bool=true)
     #=local time in hours. You have to convert miniutes and seconds to fractions of an hour. from 0 to 24.
-    longitude in radians from 0 to 2π, starting at greenwith, goint to the east.
+    longitude in radians from 0 to 2π, starting at greenwitch, goint to the east.
     latitude in radians from -π/2 to π/2, starting from the south pole, going north.=#
 
     ut = time - (timezone + daylight_saving)
@@ -30,7 +29,7 @@ function _sunposition(t_2060, longitude, latitude)
     x = -sin(azimuth) * cos(elevation)
     y = -cos(azimuth) * cos(elevation)
     z = sin(elevation)
-    return [x,y,z]
+    return [x, y, z]
 end
 
 const dt2060 = DateTime(2060)
@@ -48,7 +47,7 @@ function date_from_2060(ut, day::Int, month::Int, year::Int)
         m̃ = month
         ỹ = year
     end
-    t = trunc(365.25 * (ỹ - 2000)) + trunc(30.6001 * (m̃ + 1)) - trunc(0.01ỹ) + day + ut/24 - 21958
+    t = trunc(365.25 * (ỹ - 2000)) + trunc(30.6001 * (m̃ + 1)) - trunc(0.01ỹ) + day + ut / 24 - 21958
     # universal time
     return t
 end
@@ -61,12 +60,12 @@ function algorithm_1(t_2060, longitude)
     s2 = 2 * s1 * c1
     c2 = (c1 + s1) * (c1 - s1)
 
-    right_ascension = -1.38880 + 1.72027920e-2 * t_2060 + 
-                        3.199e-2 * s1 - 2.65e-3 * c1 + 
-                        4.050e-2 * s2 + 1.525e-2 * c2
+    right_ascension = -1.38880 + 1.72027920e-2 * t_2060 +
+                      3.199e-2 * s1 - 2.65e-3 * c1 +
+                      4.050e-2 * s2 + 1.525e-2 * c2
     right_ascension = mod(right_ascension, 2π)
-    declination = 6.57e-3 + 7.347e-2 * s1 - 3.9919e-1 * c1 + 
-                              7.3e-4 * s2 - 6.60e-3 * c2
+    declination = 6.57e-3 + 7.347e-2 * s1 - 3.9919e-1 * c1 +
+                  7.3e-4 * s2 - 6.60e-3 * c2
     hour_angle = 1.75283 + 6.3003881 * t_2060 + longitude - right_ascension
     hour_angle = mod(hour_angle + π, 2π) - π
     return right_ascension, declination, hour_angle
@@ -85,7 +84,7 @@ function get_local_sun_pos(latitude, declination, hour_angle)
     sH = sin(hour_angle)
     cH = cos(hour_angle)
     se0 = sp * sd + cp * cd * cH
-    elevation = asin(se0) - 4.26e-5 * sqrt(1- se0^2)
-    azimuth = atan(sH, cH * sp - sd*cp / cd)
+    elevation = asin(se0) - 4.26e-5 * sqrt(1 - se0^2)
+    azimuth = atan(sH, cH * sp - sd * cp / cd)
     return elevation, azimuth
 end
