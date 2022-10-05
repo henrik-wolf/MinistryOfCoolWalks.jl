@@ -1,5 +1,3 @@
-const flm = pyimport("folium")
-
 struct FoliumMap
     obj::PyObject
 end
@@ -18,6 +16,3 @@ end
 function Base.show(io::IO, ::MIME"juliavscode/html", map::FoliumMap)
     write(io, repr("text/html", map.obj))
 end
-
-
-
