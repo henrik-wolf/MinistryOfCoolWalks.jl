@@ -77,7 +77,6 @@ end
     _, g = shadow_graph_from_file(joinpath([homedir(), path]))
     m = graph_edges(g; figure_params=Dict(:location=>[52.904, -1.18], :zoom_start=>14), weight=10)
     graph_edges!(m, g; color="#FF0000")
-    display(m)
 end
 
 @testset "graph edge geometries" begin
@@ -86,5 +85,4 @@ end
     _, g = shadow_graph_from_file(joinpath([homedir(), path]))
     m = graph_edge_geometries(g; figure_params=Dict(:location=>[52.904, -1.18], :zoom_start=>14), weight=10)
     graph_edge_geometries!(m, g; color="#FF0000")
-    display(m)
 end
