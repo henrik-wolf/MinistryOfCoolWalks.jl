@@ -101,3 +101,8 @@ function polylines(polylines; figure_params=Dict(), kwargs...)
     flmmap = FoliumMap(; figure_params...)
     return polylines!(flmmap, polylines; kwargs...)
 end
+
+######## OTHER ############
+
+# this takes a list like: [(minlat, minlon), (maxlat, maxlon)]
+fit_bounds!(flmmap, bounds) = flmmap.obj.fit_bounds(bounds)
