@@ -9,6 +9,7 @@ module MinistryOfCoolWalks
     using CompositeBuildings
     using Graphs
     using MetaGraphs
+    using ProgressMeter
 
     const flm = PyNULL()
     const OSM_ref = Ref{ArchGDAL.ISpatialRef}()

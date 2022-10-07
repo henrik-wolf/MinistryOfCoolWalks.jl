@@ -14,7 +14,7 @@ function cast_shadow(buildings_df, height_key, sun_direction::AbstractArray)
     offset_vector = - sun_direction ./ sun_direction[3]
     offset_vector[3] = 0
 
-    for row in eachrow(buildings_df)
+    @showprogress 1 "calculating shadows" for row in eachrow(buildings_df)
         o = getproperty(row, height_key) * offset_vector
         lower_ring = GeoInterface.getgeom(row.geometry, 1)
         upper_ring = GeoInterface.getgeom(row.geometry, 1)
