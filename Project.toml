@@ -15,6 +15,7 @@ MetaGraphs = "626554b9-1ddb-594c-aa3c-2596fe9399a5"
 ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
 PyCall = "438e738f-606a-5dbb-bf0a-cddfbfd45ab0"
 ShadowGraphs = "bb16ec3a-7e9e-4bd8-a580-2befe1914c0f"
+TreeLoaders = "f47e3ccc-e4ba-4197-93dd-e1f87b2e9c3f"
 
 [compat]
 julia = "1.8"
