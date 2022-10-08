@@ -18,6 +18,7 @@ ShadowGraphs = "bb16ec3a-7e9e-4bd8-a580-2befe1914c0f"
 TreeLoaders = "f47e3ccc-e4ba-4197-93dd-e1f87b2e9c3f"
 
 [compat]
+ProgressMeter = "1"
 julia = "1.8"
 
 [extras]
