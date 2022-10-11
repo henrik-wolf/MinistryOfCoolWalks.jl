@@ -57,3 +57,11 @@ function cast_shadow(buildings_df, height_key, sun_direction::AbstractArray)
 
     return shadow_df
 end
+
+# function to add shadow intervals to meta graph g, from dataframe shadows with column :geometry
+function add_shadow_intervals!(g, shadows)
+    for edge in edges(g)
+        for shadow_row in eachrow(shadows)
+        end
+    end
+end

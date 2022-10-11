@@ -27,5 +27,7 @@ begin
     circles!(m, trees.lon, trees.lat; radius=5, color="#68bd61", stroke=false, fill=true, fill_opacity=0.3)
     polygons!(m, buildings.geometry; fill=true, stroke=false, fill_opacity=1)
     graph_node_circles!(m, g; radius=1, color="#e2b846")
-    graph_edges!(m, g; weight=2, color="#e56c6c", opacity=0.7)
+    graph_edges!(m, g; weight=2, color="#e56c6c", opacity=0.5)
 end
+
+add_shadow_intervals!(g, shadows)

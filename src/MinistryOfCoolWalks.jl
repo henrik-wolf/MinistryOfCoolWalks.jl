@@ -26,7 +26,8 @@ module MinistryOfCoolWalks
     export sunposition
     include("SunPosition.jl")
 
-    export cast_shadow
+    export cast_shadow,
+        add_shadow_intervals!
     include("ShadowCasting.jl")
 
     export FoliumMap,
