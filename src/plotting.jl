@@ -1,34 +1,16 @@
-##############################################
-## FOLIUM TAKES ALL COORDINATES AS LAT, LON ##
-##############################################
-struct FoliumMap
-    obj::PyObject
-end
-function FoliumMap(;kwargs...)
-    if !haskey(kwargs, :location)
-        # this might be very useless...
-        flmmap = flm.Map(;location=[0.0, 0.0], kwargs...)
-    else
-        flmmap = flm.Map(;kwargs...)
-    end
-    return FoliumMap(flmmap)
-end
-
-# for nice plot in VS Codes
-function Base.show(io::IO, ::MIME"juliavscode/html", flmmap::FoliumMap)
-    write(io, repr("text/html", flmmap.obj))
-end
-
-# for nice plots everywhere else
-function Base.show(io::IO, mime::MIME"text/html", flmmap::FoliumMap)
-    show(io, mime, flmmap.obj)
-end
-
 ############  CIRLCES  ################
+function cirle!(flmmap, point; kwargs...)
+    flm.Circle(point; kwargs...).add_to(flmmap.obj)
+    return flmmap
+end
+circle!(flmmap, lon, lat; kwargs...) = circle!(flmmap, (lat, lon); kwargs...)
+circle!(flmmap, point::ArchGDAL.IGeometry{<:ArchGDAL.wkbPoint}; kwargs...) = circle!(flmmap, ArchGDAL.getx(point, 0), ArchGDAL.gety(point, 0); kwargs...)
+
+
 function circles!(flmmap, points; kwargs...)
     @nospecialize
     for point in points
-        flm.Circle(point; kwargs...).add_to(flmmap.obj)
+        circle!(flmmap, point; kwargs...)
     end
     return flmmap
 end
@@ -118,7 +100,7 @@ end
 # list of lines with geo interface compatible geometry
 function polylines!(flmmap, polylines; kwargs...)
     for line in polylines
-        polyline!(flmmap, line; kwargs)
+        polyline!(flmmap, line; kwargs...)
     end
     return flmmap
 end
@@ -194,3 +176,9 @@ function graph_edge_geometries(g; figure_params=Dict(), kwargs...)
     flmmap = FoliumMap(; figure_params...)
     return graph_edge_geometries!(flmmap, g; kwargs...)
 end
+
+function graph_shadows!(flmmap, g; kwargs...)
+    for edge in edges(g)
+        !has_prop(g, edge, :geoshadowline) && continue  # skip lines without shadow
+        shadow_line = get_prop(g, edge, :geoshadowline)
+        
