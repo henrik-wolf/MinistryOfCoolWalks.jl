@@ -9,6 +9,7 @@ module MinistryOfCoolWalks
     using Graphs
     using MetaGraphs
     using ProgressMeter
+    using Folium
 
     const OSM_ref = Ref{ArchGDAL.ISpatialRef}()
     function __init__()
