@@ -59,7 +59,7 @@ function cast_shadow(buildings_df, height_key, sun_direction::AbstractArray)
 end
 
 # function to add shadow intervals to meta graph g, from dataframe shadows with column :geometry
-# adds the following data to the edge props: -shadowed_length, -geoshadowline, shadowed_part_length (only for debugging)
+# adds the following data to the edge props: -shadowed_length, -shadowgeom, shadowed_part_length (only for debugging)
 function add_shadow_intervals!(g, shadows)
     df = DataFrame()
     @showprogress 0.2 "adding shadows" for edge in edges(g)
@@ -80,8 +80,8 @@ function add_shadow_intervals!(g, shadows)
             set_prop!(g, edge, :shadowed_part_length, 0)
         end
 
-        if !has_prop(g, edge, :geoshadowline)
-            set_prop!(g, edge, :geoshadowline, ArchGDAL.createlinestring())
+        if !has_prop(g, edge, :shadowgeom)
+            set_prop!(g, edge, :shadowgeom, ArchGDAL.createlinestring())
         end
 
         if !has_prop(g, edge, :shadowed_length)
@@ -93,15 +93,15 @@ function add_shadow_intervals!(g, shadows)
         set_prop!(g, edge, :shadowed_part_length, get_prop(g, edge, :shadowed_part_length) + total_shadow_part_lengths)
         
         full_shadow = foldl(ArchGDAL.union, shadow_lines)
-        set_prop!(g, edge, :geoshadowline, ArchGDAL.union(get_prop(g, edge, :geoshadowline), full_shadow))
+        set_prop!(g, edge, :shadowgeom, ArchGDAL.union(get_prop(g, edge, :shadowgeom), full_shadow))
 
-        set_prop!(g, edge, :shadowed_length, ArchGDAL.geomlength(get_prop(g, edge, :geoshadowline)))
+        set_prop!(g, edge, :shadowed_length, ArchGDAL.geomlength(get_prop(g, edge, :shadowgeom)))
 
         push!(df, Dict(
             :edge=>get_prop(g, edge, :osm_id), 
             :shadow=>full_shadow, 
             :parts_length=>total_shadow_part_lengths,
-            :union_length=>ArchGDAL.geomlength(get_prop(g, edge, :geoshadowline))
+            :union_length=>ArchGDAL.geomlength(get_prop(g, edge, :shadowgeom))
             ); cols=:union)
     end
     return df
