@@ -58,13 +58,40 @@ function cast_shadow(buildings_df, height_key, sun_direction::AbstractArray)
     return shadow_df
 end
 
+function get_length_by_buffering(geom, buffer, points, edge)
+    surface = ArchGDAL.buffer(geom, buffer, points)
+    if buffer > 1e-2
+        throw(DomainError("buffer zone too large."))
+    end
+    if ngeom(surface) == 0
+        if points < 100
+            #@warn "somethow, some geom did not produce a usable surface. Increasing the points"
+            return get_length_by_buffering(geom, buffer, 20+points, edge)
+        else
+            @warn "increasing the points did not work, doubling buffer for edge $edge"
+            return get_length_by_buffering(geom, 2*buffer, 1, edge)
+        end
+    else
+        area = 1/2 * 4*points * buffer^2 * sin(2π/(4*points))  # area of regular polygon with 4*points corners
+        ngeoms = geomtrait(surface) isa MultiPolygonTrait ? ngeom(surface) : 1
+        total_endcap_area = ngeoms * area  # every polygon adds two halves of a regular polygon with 4*points at each end.
+        return (ArchGDAL.geomarea(surface) - total_endcap_area) / 2buffer
+    end
+end
+
 # function to add shadow intervals to meta graph g, from dataframe shadows with column :geometry
 # adds the following data to the edge props: -shadowed_length, -shadowgeom, shadowed_part_length (only for debugging)
-function add_shadow_intervals!(g, shadows)
+# shadows is expected to have center_lon and center_lat in its metadata. This is used to project all geometry to a locally flat crs
+function add_shadow_intervals!(g, shadows; method=:buffer)
+    BUFFER = 1e-4  # TODO: fix this value at something reasonable. also... maybe reconstruct the lines anyway??
+
+    # project all stuff into local system
+    project_local!(shadows.geometry, metadata(shadows, "center_lon"), metadata(shadows, "center_lat"))
+    project_local!(g, metadata(shadows, "center_lon"), metadata(shadows, "center_lat"))
     df = DataFrame()
     @showprogress 0.2 "adding shadows" for edge in edges(g)
-        !has_prop(g, edge, :geolinestring) && continue  # skip helpers
-        linestring = get_prop(g, edge, :geolinestring)
+        !has_prop(g, edge, :edgegeom) && continue  # skip helpers
+        linestring = get_prop(g, edge, :edgegeom)
 
         shadow_lines = ArchGDAL.IGeometry[]
         for shadow_row in eachrow(shadows)
@@ -89,20 +116,92 @@ function add_shadow_intervals!(g, shadows)
         end
 
         # update the relevant properties of the graph
-        total_shadow_part_lengths = mapreduce(ArchGDAL.geomlength, +, shadow_lines)
-        set_prop!(g, edge, :shadowed_part_length, get_prop(g, edge, :shadowed_part_length) + total_shadow_part_lengths)
+        total_shadow_part_lengths = mapreduce(ArchGDAL.geomlength, +, shadow_lines; init=get_prop(g, edge, :shadowed_part_length))
+        set_prop!(g, edge, :shadowed_part_length, total_shadow_part_lengths)
         
-        full_shadow = foldl(ArchGDAL.union, shadow_lines)
-        set_prop!(g, edge, :shadowgeom, ArchGDAL.union(get_prop(g, edge, :shadowgeom), full_shadow))
+        full_shadow = foldl(ArchGDAL.union, shadow_lines; init = get_prop(g, edge, :shadowgeom))
+        if method === :reconstruct
+            full_shadow = clean_up_linestring(full_shadow)
+        end
+        set_prop!(g, edge, :shadowgeom, full_shadow)
 
-        set_prop!(g, edge, :shadowed_length, ArchGDAL.geomlength(get_prop(g, edge, :shadowgeom)))
+        length_in_shadow = if method === :reconstruct
+                            ArchGDAL.geomlength(full_shadow)
+                        elseif method === :buffer
+                            get_length_by_buffering(full_shadow, BUFFER, 1, edge)
+                        end
+
+        set_prop!(g, edge, :shadowed_length, length_in_shadow)
+
+        set_prop!(g, edge, :full_length, ArchGDAL.geomlength(get_prop(g, edge, :edgegeom)))
+
+        diff = get_prop(g, edge, :shadowed_part_length) - length_in_shadow
+        if diff < -0.1
+            @warn "the sum of the parts length is less than the length of the union for edge $edge (by $diff m)"
+            return full_shadow
+            #project_back!(shadows.geometry)
+            #project_back!(g)
+            #return get_prop(g, edge, :shadowgeom)
+
+            #return shadow_lines
+        end
 
         push!(df, Dict(
-            :edge=>get_prop(g, edge, :osm_id), 
-            :shadow=>full_shadow, 
-            :parts_length=>total_shadow_part_lengths,
-            :union_length=>ArchGDAL.geomlength(get_prop(g, edge, :shadowgeom))
-            ); cols=:union)
+            :edge=>get_prop(g, edge, :osm_id),
+            :sl=>get_prop(g, edge, :shadowed_length),
+            :spl=>get_prop(g, edge, :shadowed_part_length),
+            :fl=>get_prop(g, edge, :full_length)
+        ); cols=:union)
     end
+    #project all stuff back
+    project_back!(shadows.geometry)
+    project_back!(g)
+    return df
+end
+
+
+function add_shadow_intervals_linear!(g, shadows)
+    # project all stuff into local system
+    project_local!(shadows.geometry, metadata(shadows, "center_lon"), metadata(shadows, "center_lat"))
+    project_local!(g, metadata(shadows, "center_lon"), metadata(shadows, "center_lat"))
+    df = DataFrame()
+
+   @info "union of all shadows" 
+    full_shadow = reduce(ArchGDAL.union, shadows.geometry)
+
+    @showprogress 0.2 "adding shadows" for edge in edges(g)
+        !has_prop(g, edge, :edgegeom) && continue  # skip helpers
+        linestring = get_prop(g, edge, :edgegeom)
+
+        ArchGDAL.disjoint(full_shadow, linestring) && continue  # skip disjoint geometry
+
+        part_in_shadow = ArchGDAL.intersection(full_shadow, linestring)
+
+        # add the relevant properties to the graph if not allready there
+        if !has_prop(g, edge, :shadowgeom)
+            set_prop!(g, edge, :shadowgeom, ArchGDAL.createlinestring())
+        end
+
+        if !has_prop(g, edge, :shadowed_length)
+            set_prop!(g, edge, :shadowed_length, 0)
+        end
+
+        # update the relevant properties of the graph
+        set_prop!(g, edge, :shadowgeom, part_in_shadow)
+
+        union_length = ArchGDAL.geomlength(get_prop(g, edge, :shadowgeom))
+        set_prop!(g, edge, :shadowed_length, union_length)
+
+        set_prop!(g, edge, :full_length, ArchGDAL.geomlength(get_prop(g, edge, :edgegeom)))
+
+        push!(df, Dict(
+            :edge=>get_prop(g, edge, :osm_id),
+            :sl=>get_prop(g, edge, :shadowed_length),
+            :fl=>get_prop(g, edge, :full_length)
+        ); cols=:union)
+    end
+    #project all stuff back
+    project_back!(shadows.geometry)
+    project_back!(g)
     return df
 end

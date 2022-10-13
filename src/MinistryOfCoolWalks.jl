@@ -24,6 +24,7 @@ module MinistryOfCoolWalks
     include("SunPosition.jl")
 
     export cast_shadow,
-        add_shadow_intervals!
+        add_shadow_intervals!,
+        add_shadow_intervals_linear!
     include("ShadowCasting.jl")
 end
