@@ -1,47 +1,51 @@
 using MinistryOfCoolWalks
-
+using ArchGDAL
 using ShadowGraphs
 using CompositeBuildings
 using TreeLoaders
 using Graphs
 using MetaGraphs
+using Folium
+using GeoInterface
+using DataFrames
 
 datapath = joinpath(homedir(), "Desktop/Masterarbeit/data/Nottingham/")
 buildings = load_british_shapefiles(joinpath(datapath, "Nottingham.shp"); bbox=(minlat=52.89, minlon=-1.2, maxlat=52.92, maxlon=-1.165))
-shadows = cast_shadow(buildings, :height_mean, [1.0, -0.5, 0.6])
+shadows = cast_shadow(buildings, :height_mean, [1.0, -0.5, 0.4])
 trees = load_nottingham_trees(joinpath(datapath, "trees/trees_full_rest.csv"); bbox=(minlat=52.89, minlon=-1.2, maxlat=52.92, maxlon=-1.165))
-
-
-begin
-    m = polygons(shadows.geometry; 
-    figure_params=Dict(:location=>[52.904, -1.18], :zoom_start=>14, :tiles=>"CartoDB PositronNoLabels"),
-    color="black", fill=true, stroke=false, fill_opacity=0.4)
-    circles!(m, trees.lon, trees.lat; radius=5, color="#68bd61", stroke=false, fill=true, fill_opacity=0.3)
-    polygons!(m, buildings.geometry; fill=true, stroke=false, fill_opacity=1)
-end
-
 _, g = shadow_graph_from_file(joinpath(datapath, "test_nottingham.json"))
+#lines_linear = add_shadow_intervals_linear!(g, shadows)  # takes about 1:48 minutes
+_, g = shadow_graph_from_file(joinpath(datapath, "test_nottingham.json"))
+lines_normal = add_shadow_intervals!(g, shadows)  # takes about 0:11 minutes
+
+
+describe(lines_normal)
+describe(old_lines)
 begin
-    m = polygons(shadows.geometry; 
-        figure_params=Dict(:location=>[52.904, -1.18], :zoom_start=>14, :tiles=>"CartoDB PositronNoLabels"),
-        color="black", fill=true, stroke=false, fill_opacity=0.4)
-    circles!(m, trees.lon, trees.lat; radius=5, color="#68bd61", stroke=false, fill=true, fill_opacity=0.3)
-    polygons!(m, buildings.geometry; fill=true, stroke=false, fill_opacity=1)
-    polygons!(m, filter(:id=>id->id in shadowing.shadow, buildings).geometry; fill=true, color="red", stroke=false, fill_opacity=1)
-    polylines!(m, shadowing.shadow; weight=5, color="black")
-    graph_node_circles!(m, g; radius=1, color="#e2b846")
-    graph_edges!(m, g; weight=2, color="#e56c6c", opacity=0.5)
+    p = plot()
+    plot!(ArchGDAL.buffer(lines_normal, 1e-8, 1))
+    for i in getgeom(lines_normal)
+        plot!(p, i, lw=6, alpha=0.4, xlims=(-0.1, 0.))
+    end
+    plot!()
 end
 
-shadowing = add_shadow_intervals!(g, shadows)
+begin
+    fig = draw(shadows.geometry;
+        figure_params=Dict(:location=>(52.904, -1.18), :zoom_start=>14),
+        fill_opacity=0.5,
+        color=:black)
+    draw!(fig, buildings.geometry)
+    draw!(fig, g, :vertices)
+    draw!(fig, g, :edges)
+    draw!(fig, g, :shadowgeom)
+    draw!(fig, get_prop(g, 8,717, :shadowgeom))
+end
 
-using Plots
-scatter(shadowing.parts_length, shadowing.union_length)
 
-overlap = filter([:parts_length, :union_length]=>(p, u)->abs(p-u) > 1e-8, shadowing)
-overlap.parts_length - overlap.union_length
+ngeom(get_prop(g, 8,717, :shadowgeom))
 
-edge_lengths = [get_prop(g, edge, :shadowed_length) for edge in edges(g) if has_prop(g, edge, :shadowed_length)]
-
-way(38072263)
-
+plot()
+for i in getgeom(get_prop(g, 8,717, :shadowgeom))
+    display(plot!(i, lw=6, alpha=0.4))
+end
