@@ -58,6 +58,14 @@ function cast_shadow(buildings_df, height_key, sun_direction::AbstractArray)
     return shadow_df
 end
 
+rebuild_lines(lines) = rebuild_lines(geomtrait(lines), lines)
+rebuild_lines(::LineStringTrait, lines) = lines
+rebuild_lines(::MultiLineStringTrait, lines) = rebuild_lines(nothing, collect(getgeom(lines)))  # not sure if I need to collect...
+function rebuild_lines(::Nothing, lines)
+    adjacency = [GeoInterface.distance(a,b) for a in lines, b in lines]
+    return adjacency
+end
+
 function get_length_by_buffering(geom, buffer, points, edge)
     surface = ArchGDAL.buffer(geom, buffer, points)
     if buffer > 1e-2

@@ -25,6 +25,7 @@ module MinistryOfCoolWalks
 
     export cast_shadow,
         add_shadow_intervals!,
-        add_shadow_intervals_linear!
+        add_shadow_intervals_linear!,
+        rebuild_lines
     include("ShadowCasting.jl")
 end
