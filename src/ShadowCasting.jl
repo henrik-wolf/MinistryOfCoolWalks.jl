@@ -58,12 +58,30 @@ function cast_shadow(buildings_df, height_key, sun_direction::AbstractArray)
     return shadow_df
 end
 
-rebuild_lines(lines) = rebuild_lines(geomtrait(lines), lines)
-rebuild_lines(::LineStringTrait, lines) = lines
-rebuild_lines(::MultiLineStringTrait, lines) = rebuild_lines(nothing, collect(getgeom(lines)))  # not sure if I need to collect...
-function rebuild_lines(::Nothing, lines)
-    adjacency = [GeoInterface.distance(a,b) for a in lines, b in lines]
-    return adjacency
+rebuild_lines(lines, min_dist) = rebuild_lines(geomtrait(lines), lines, min_dist)
+rebuild_lines(::LineStringTrait, lines, min_dist) = lines
+rebuild_lines(::MultiLineStringTrait, lines, min_dist) = rebuild_lines(nothing, getgeom(lines), min_dist)  # not sure if I need to collect...
+function rebuild_lines(::Nothing, lines, min_dist)
+    lines = collect(lines)  # make sure lines are indexable
+    # TODO: this calculates every distance twice... but the syntax is absoulutely gorgeous
+    adjacency = [GeoInterface.distance(a,b) < min_dist for a in lines, b in lines]
+    for i in first(size(adjacency))
+        adjacency[i,i] = false
+    end
+    neighbor_graph = SimpleGraph(adjacency)
+    component_starts = first.(connected_components(neighbor_graph))
+    trees = map(start->dfs_tree(neighbor_graph, start), component_starts)
+    return map(trees, component_starts) do tree, start_node
+        combine_along_tree(tree, start_node, lines)
+    end
+end
+
+function combine_along_tree(tree, start_node, lines)
+    mapfoldl(start->combine_along_tree(tree, start, lines), combine_lines, neighbors(tree, start_node); init=lines[start_node])
+end
+
+function combine_lines(a, b)
+    return (a,b)
 end
 
 function get_length_by_buffering(geom, buffer, points, edge)
