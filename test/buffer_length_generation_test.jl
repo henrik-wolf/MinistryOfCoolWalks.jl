@@ -42,14 +42,3 @@ begin
     plot(p1, p2, size=(1000, 500))
 end
 
-# code for drawing the distance matrix for overlapping lines
-begin
-    distances = [ArchGDAL.distance(l1, l2) for l1 in lines_normal, l2 in lines_normal]
-    p1 = plot(ratio=1)
-    plot!(p1, lines, label="linear", lw=16, alpha=0.2)
-    for (i, line) in enumerate(lines_normal)
-        plot!(p1, line, lw=8, alpha=0.6, label=i)
-    end
-    p2 = heatmap(1:6, 1:6, distances, transpose=false, yflip=true, clim=(0, 3))
-    plot(p1, p2, size=(2000, 1000))
-end
