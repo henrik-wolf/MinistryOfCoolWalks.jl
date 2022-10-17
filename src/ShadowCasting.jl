@@ -60,7 +60,8 @@ end
 
 rebuild_lines(lines, min_dist) = rebuild_lines(geomtrait(lines), lines, min_dist)
 rebuild_lines(::LineStringTrait, lines, min_dist) = lines
-rebuild_lines(::MultiLineStringTrait, lines, min_dist) = rebuild_lines(nothing, getgeom(lines), min_dist)  # not sure if I need to collect...
+rebuild_lines(::MultiLineStringTrait, lines, min_dist) = rebuild_lines(nothing, getgeom(lines), min_dist)
+
 function rebuild_lines(::Nothing, lines, min_dist)
     lines = collect(lines)  # make sure lines are indexable
     # TODO: this calculates every distance twice... but the syntax is absoulutely gorgeous
@@ -71,17 +72,57 @@ function rebuild_lines(::Nothing, lines, min_dist)
     neighbor_graph = SimpleGraph(adjacency)
     component_starts = first.(connected_components(neighbor_graph))
     trees = map(start->dfs_tree(neighbor_graph, start), component_starts)
-    return map(trees, component_starts) do tree, start_node
-        combine_along_tree(tree, start_node, lines)
+    disjunct_lines = map(trees, component_starts) do tree, start_node
+        combine_along_tree(tree, start_node, lines, min_dist)
+    end
+    if length(disjunct_lines) == 1
+        return first(disjunct_lines)
+    else
+        ret_multiline = ArchGDAL.createmultilinestring()
+        for geom in disjunct_lines
+            ArchGDAL.addgeom!(ret_multiline, geom)
+        end
+        return ret_multiline
     end
 end
 
-function combine_along_tree(tree, start_node, lines)
-    mapfoldl(start->combine_along_tree(tree, start, lines), combine_lines, neighbors(tree, start_node); init=lines[start_node])
+function combine_along_tree(tree, start_node, lines, min_dist)
+    mapfoldl(start->combine_along_tree(tree, start, lines, min_dist),
+            (a,b)->combine_lines(a,b, min_dist), 
+            neighbors(tree, start_node);
+            init=lines[start_node])
 end
 
-function combine_lines(a, b)
-    return (a,b)
+function combine_lines(a, b, min_dist)
+    a_points2b = [ArchGDAL.distance(p, b) for p in getgeom(a)]
+    a2b_points = [ArchGDAL.distance(a, p) for p in getgeom(b)]
+    # this somehow ignores certain edge cases like loops which are cut at just the right point...
+    if all(a_points2b .< min_dist)
+        return b
+    elseif all(a2b_points .< min_dist)
+        return a
+    else
+        # four possible cases:
+        # - overlap is at the end of a and b
+        # - overlap is at the start of a and b
+        # - overlap is at the start of a and end of b
+        # - overlap is at the end of a and start of b
+        a_indices = a_points2b[1] < min_dist ? (ngeom(a):-1:1) : (1:ngeom(a))
+
+        b_indices = a2b_points[1] < min_dist ? (1:ngeom(b)) : (ngeom(b):-1:1)
+
+        combined = ArchGDAL.createlinestring()
+        for a_index in a_indices
+            a_point = getgeom(a, a_index)
+            ArchGDAL.addpoint!(combined, getcoord(a_point)...)
+        end
+        for b_index in b_indices
+            a2b_points[b_index] < min_dist && continue
+            ArchGDAL.addpoint!(combined, getcoord(getgeom(b, b_index))...)
+        end
+        # we could do some geometry reduction here? (point which are on a line between other points)
+        return combined
+    end
 end
 
 function get_length_by_buffering(geom, buffer, points, edge)
@@ -110,6 +151,7 @@ end
 # shadows is expected to have center_lon and center_lat in its metadata. This is used to project all geometry to a locally flat crs
 function add_shadow_intervals!(g, shadows; method=:buffer)
     BUFFER = 1e-4  # TODO: fix this value at something reasonable. also... maybe reconstruct the lines anyway??
+    MIN_DIST = 1e-4  # TODO: same as BUFFER
 
     # project all stuff into local system
     project_local!(shadows.geometry, metadata(shadows, "center_lon"), metadata(shadows, "center_lat"))
@@ -147,7 +189,7 @@ function add_shadow_intervals!(g, shadows; method=:buffer)
         
         full_shadow = foldl(ArchGDAL.union, shadow_lines; init = get_prop(g, edge, :shadowgeom))
         if method === :reconstruct
-            full_shadow = clean_up_linestring(full_shadow)
+            full_shadow = rebuild_lines(full_shadow, MIN_DIST)
         end
         set_prop!(g, edge, :shadowgeom, full_shadow)
 
@@ -159,6 +201,7 @@ function add_shadow_intervals!(g, shadows; method=:buffer)
 
         set_prop!(g, edge, :shadowed_length, length_in_shadow)
 
+        # this could be factored out...
         set_prop!(g, edge, :full_length, ArchGDAL.geomlength(get_prop(g, edge, :edgegeom)))
 
         diff = get_prop(g, edge, :shadowed_part_length) - length_in_shadow

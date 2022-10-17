@@ -37,13 +37,28 @@ adj_g = SimpleGraph(adj)
 connected_components(adj_g)
 t1 = dfs_tree(adj_g, 8)
 
-
+comb = ArchGDAL.createlinestring()
+ArchGDAL.addpoint!(comb, 1.0, 2.0)
 
 graphplot(adj_g, curves=false, names=vertices(adj_g), markersize=0.3)
-graphplot!(t1, curves=false, names=vertices(t1), markersize=0.3)
+graphplot(t1, curves=false, names=vertices(t1), markersize=0.3)
 neighbors(t1, 8)
 
+# 2 and 7 full overlap
+# 5 and 6 partial overlap
+# 
+l1 = getgeom(lines, 3)
+l2 = getgeom(lines, 2)
 
+plot(l1, lw=6, alpha=0.4)
+plot!(l2, lw=6, alpha=0.4)
+plot!(getgeom(l1, 1))
+plot!(getgeom(l2, 1))
+combined = MinistryOfCoolWalks.combine_lines(l1, l2, 1e-5)
+
+plot!()
+plot!(combined, lw=3)
+plot!(collect(getgeom(combined)))
 
 function combine(tree, start)
     mapfoldl(n->combine(tree, n), (x,y)->(x,y), neighbors(tree, start); init=start)
@@ -61,6 +76,9 @@ begin
     #plot!(p1, lines, label="linear", lw=8, alpha=0.2)
     for (i, line) in enumerate(getgeom(lines))
         plot!(p1, line, lw=8, alpha=0.6, label=(i, ngeom(line)), ms=4, m=:o)
+        if true
+            display(p1)
+        end
     end
     p2 = heatmap(distances, transpose=false, yflip=true, clim=(0,3))
     plot(p1, p2, size=(1000, 1500), layout=(2,1))

@@ -15,9 +15,12 @@ shadows = cast_shadow(buildings, :height_mean, [1.0, -0.5, 0.4])
 trees = load_nottingham_trees(joinpath(datapath, "trees/trees_full_rest.csv"); bbox=(minlat=52.89, minlon=-1.2, maxlat=52.92, maxlon=-1.165))
 _, g = shadow_graph_from_file(joinpath(datapath, "test_nottingham.json"))
 #lines_linear = add_shadow_intervals_linear!(g, shadows)  # takes about 1:48 minutes
+lines_reconstructed = add_shadow_intervals!(g, shadows; method=:reconstruct)
 _, g = shadow_graph_from_file(joinpath(datapath, "test_nottingham.json"))
 lines_normal = add_shadow_intervals!(g, shadows)  # takes about 0:11 minutes
+g
 
+scatter(2lines_normal.spl .- lines_reconstructed.spl)
 
 describe(lines_normal)
 describe(old_lines)
