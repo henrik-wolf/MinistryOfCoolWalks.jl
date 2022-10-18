@@ -17,7 +17,19 @@ trees = load_nottingham_trees(joinpath(datapath, "trees/trees_full_rest.csv"); b
 
 
 _, g = shadow_graph_from_file(joinpath(datapath, "test_nottingham.json"))
-lines_normal = add_shadow_intervals!(g, shadows)
+lines_normal = add_shadow_intervals_rtree!(g, shadows)
+
+@code_warntype add_shadow_intervals_rtree!(g, shadows)
+@time add_shadow_intervals_rtree!(g, shadows)
+@profview add_shadow_intervals_rtree!(g, shadows)
+
+function test()
+    df = DataFrame()
+    push!(df, Dict(:a=>4))
+    return df
+end
+
+@code_warntype test()
 
 scatter(2lines_normal.spl .- lines_reconstructed.spl)
 
