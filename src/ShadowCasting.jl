@@ -149,7 +149,7 @@ end
 # function to add shadow intervals to meta graph g, from dataframe shadows with column :geometry
 # adds the following data to the edge props: -shadowed_length, -shadowgeom, shadowed_part_length (only for debugging)
 # shadows is expected to have center_lon and center_lat in its metadata. This is used to project all geometry to a locally flat crs
-function add_shadow_intervals!(g, shadows; method=:buffer)
+function add_shadow_intervals!(g, shadows; method=:reconstruct)
     BUFFER = 1e-4  # TODO: fix this value at something reasonable. also... maybe reconstruct the lines anyway??
     MIN_DIST = 1e-4  # TODO: same as BUFFER
 
@@ -229,7 +229,7 @@ function add_shadow_intervals!(g, shadows; method=:buffer)
 end
 
 
-function add_shadow_intervals_rtree!(g, shadows; method=:buffer)
+function add_shadow_intervals_rtree!(g, shadows; method=:reconstruct)
     BUFFER = 1e-4  # TODO: fix this value at something reasonable. also... maybe reconstruct the lines anyway??
     MIN_DIST = 1e-4  # TODO: same as BUFFER
 
