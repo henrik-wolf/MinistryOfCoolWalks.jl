@@ -41,3 +41,8 @@ function project_graph_edges!(g, trans)
         end
     end
 end
+
+function rect_from_geom(geom)
+    extent = GeoInterface.extent(geom)
+    return SpatialIndexing.Rect(values(extent)...)
+end
