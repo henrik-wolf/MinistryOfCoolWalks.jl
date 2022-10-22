@@ -19,7 +19,7 @@ trees = load_nottingham_trees(joinpath(datapath, "trees/trees_full_rest.csv"); b
 _, g = shadow_graph_from_file(joinpath(datapath, "test_nottingham.json"))
 lines_normal = add_shadow_intervals_rtree!(g, shadows)
 
-@code_warntype add_shadow_intervals_rtree!(g, shadows)
+@code_warntype add_shadow_intervals_rtree!(g, shadows; method=:reconstruct)
 @time add_shadow_intervals_rtree!(g, shadows)
 @profview add_shadow_intervals_rtree!(g, shadows)
 

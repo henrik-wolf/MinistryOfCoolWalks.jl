@@ -247,8 +247,9 @@ function add_shadow_intervals_rtree!(g, shadows; method=:reconstruct)
 
         shadow_lines = ArchGDAL.IGeometry[]
         for spatialElement in SpatialIndexing.intersects_with(shadow_tree, linestring_rect)
-            ArchGDAL.disjoint(spatialElement.val, linestring) && continue  # skip disjoint geometry
-            part_in_shadow = ArchGDAL.intersection(spatialElement.val, linestring)
+            not_inter = !ArchGDAL.intersects(spatialElement.val.prep, linestring)
+            not_inter && continue  # skip disjoint geometry
+            part_in_shadow = ArchGDAL.intersection(spatialElement.val.orig, linestring)
             push!(shadow_lines, part_in_shadow)
         end
         length(shadow_lines) == 0 && continue  # skip all edges not in the shadow
@@ -290,7 +291,7 @@ function add_shadow_intervals_rtree!(g, shadows; method=:reconstruct)
         diff = get_prop(g, edge, :shadowed_part_length) - length_in_shadow
         if diff < -0.1
             @warn "the sum of the parts length is less than the length of the union for edge $edge (by $diff m)"
-            return full_shadow
+            #return full_shadow
             #project_back!(shadows.geometry)
             #project_back!(g)
             #return get_prop(g, edge, :shadowgeom)
