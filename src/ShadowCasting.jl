@@ -204,7 +204,7 @@ function add_shadow_intervals!(g, shadows; method=:reconstruct)
         # this could be factored out...
         set_prop!(g, edge, :full_length, ArchGDAL.geomlength(get_prop(g, edge, :edgegeom)))
 
-        diff = (get_prop(g, edge, :shadowed_part_length) - length_in_shadow)::Float64
+        diff = (get_prop(g, edge, :shadowed_part_length) - length_in_shadow)
         if diff < -0.1
             @warn "the sum of the parts length is less than the length of the union for edge $edge (by $diff m)"
             return full_shadow
@@ -242,7 +242,7 @@ function add_shadow_intervals_rtree!(g, shadows, method=:reconstruct)
     df = DataFrame()
     @showprogress 1 "adding shadows" for edge in edges(g)
         !has_prop(g, edge, :edgegeom) && continue  # skip helpers
-        linestring = get_prop(g, edge, :edgegeom)::ArchGDAL.IGeometry
+        linestring = get_prop(g, edge, :edgegeom)
         linestring_rect = rect_from_geom(linestring)
 
         total_shadow_part_lengths = 0.0
@@ -250,13 +250,13 @@ function add_shadow_intervals_rtree!(g, shadows, method=:reconstruct)
 
         #shadow_lines = ArchGDAL.IGeometry[]
         for spatialElement in SpatialIndexing.intersects_with(shadow_tree, linestring_rect)
-            prep_geom = spatialElement.val.prep::ArchGDAL.IPreparedGeometry
-            not_inter = !ArchGDAL.intersects(prep_geom, linestring)::Bool
+            prep_geom = spatialElement.val.prep
+            not_inter = !ArchGDAL.intersects(prep_geom, linestring)
             not_inter && continue  # skip disjoint geometry
-            orig_geom = spatialElement.val.orig::ArchGDAL.IGeometry
-            part_in_shadow = ArchGDAL.intersection(orig_geom, linestring)::ArchGDAL.IGeometry
-            total_shadow_part_lengths += ArchGDAL.geomlength(part_in_shadow)::Float64
-            full_shadow = ArchGDAL.union(full_shadow, part_in_shadow)::ArchGDAL.IGeometry
+            orig_geom = spatialElement.val.orig
+            part_in_shadow = ArchGDAL.intersection(orig_geom, linestring)
+            total_shadow_part_lengths += ArchGDAL.geomlength(part_in_shadow)
+            full_shadow = ArchGDAL.union(full_shadow, part_in_shadow)
             #push!(shadow_lines, part_in_shadow)
         end
         # skip all edges not in the shadow
@@ -282,12 +282,12 @@ function add_shadow_intervals_rtree!(g, shadows, method=:reconstruct)
         
         #full_shadow = foldl(ArchGDAL.union, shadow_lines; init = get_prop(g, edge, :shadowgeom))
         if method === :reconstruct
-            full_shadow = rebuild_lines(full_shadow, MIN_DIST)::ArchGDAL.IGeometry  # TODO: for now like this. Rebuild lines should also be typestable
+            full_shadow = rebuild_lines(full_shadow, MIN_DIST)
         end
         set_prop!(g, edge, :shadowgeom, full_shadow)
 
         length_in_shadow = if method === :reconstruct
-                            ArchGDAL.geomlength(full_shadow)::Float64
+                            ArchGDAL.geomlength(full_shadow)
                         elseif method === :buffer
                             get_length_by_buffering(full_shadow, BUFFER, 1, edge)
                         else
@@ -297,9 +297,9 @@ function add_shadow_intervals_rtree!(g, shadows, method=:reconstruct)
         set_prop!(g, edge, :shadowed_length, length_in_shadow)
 
         # this could be factored out...
-        set_prop!(g, edge, :full_length, ArchGDAL.geomlength(get_prop(g, edge, :edgegeom)::ArchGDAL.IGeometry))
+        set_prop!(g, edge, :full_length, ArchGDAL.geomlength(get_prop(g, edge, :edgegeom)))
 
-        diff = get_prop(g, edge, :shadowed_part_length)::Float64 - length_in_shadow
+        diff = get_prop(g, edge, :shadowed_part_length) - length_in_shadow
         if diff < -0.1
             @warn "the sum of the parts length is less than the length of the union for edge $edge (by $diff m)"
             #return full_shadow
