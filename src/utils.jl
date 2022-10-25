@@ -46,8 +46,14 @@ end
 
 function rect_from_geom(geom)
     extent = GeoInterface.extent(geom)
-    return SpatialIndexing.Rect(values(extent)...)
+    return SpatialIndexing.Rect(zip(values(extent)...)...)
 end
 
 # temporary, for working with prepared geometry
-ArchGDAL.toWKT(geom::ArchGDAL.AbstractPreparedGeometry) = error("trading a segfault for an error")
+ArchGDAL.toWKT(geom::ArchGDAL.AbstractPreparedGeometry) = "PreparedGeometry"
+
+function reinterp_crs!(geom, crs)
+    ArchGDAL.createcoordtrans(crs, crs) do trans
+        ArchGDAL.transform!(geom, trans)
+    end
+end
