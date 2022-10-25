@@ -81,3 +81,5 @@ BenchmarkTools.Trial: 139 samples with 1 evaluation.
   147 ms           Histogram: frequency by time          527 ms <
 
  Memory estimate: 15.31 MiB, allocs estimate: 250015.
+
+ ## 50 times speedup?
