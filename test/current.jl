@@ -15,16 +15,26 @@ using BenchmarkTools
 
 datapath = joinpath(homedir(), "Desktop/Masterarbeit/data/Nottingham/")
 buildings = load_british_shapefiles(joinpath(datapath, "Nottingham.shp"); bbox=(minlat=52.89, minlon=-1.2, maxlat=52.92, maxlon=-1.165))
-shadows = cast_shadow(buildings, :height_mean, [1.0, -0.5, 0.4])
+shadows = cast_shadow(buildings, :height_mean, [1.0, -0.5, 0.1])
+shadows2 = cast_shadow(buildings, :height_mean, [1.0, -0.5, 0.1])
 trees = load_nottingham_trees(joinpath(datapath, "trees/trees_full_rest.csv"); bbox=(minlat=52.89, minlon=-1.2, maxlat=52.92, maxlon=-1.165))
 
 metadata(shadows, "center_lon")
 
 
-_, g_base = shadow_graph_from_file(joinpath(datapath, "test_nottingham.json"))
-lines_normal = add_shadow_intervals_rtree!(g_base, shadows)
+_, g_normal = shadow_graph_from_file(joinpath(datapath, "test_nottingham.json"))
+lines_normal = add_shadow_intervals!(g_normal, shadows)
+_, g_rtree = shadow_graph_from_file(joinpath(datapath, "test_nottingham.json"))
+lines_rtree = add_shadow_intervals_rtree!(g_rtree, shadows)
 
-@benchmark add_shadow_intervals_rtree!(g, shadows) seconds=10 setup=(g = deepcopy($g_base))
+lines_normal
+lines_rtree
+
+
+
+get_prop(g_base, :crs)
+
+@benchmark add_shadow_intervals_rtree!(g, shadows) seconds=5 setup=(g = deepcopy($g_base))
 
 print(@report_opt add_shadow_intervals_rtree!(g_base, shadows))
 @code_warntype add_shadow_intervals_rtree!(g_base, shadows)
@@ -52,17 +62,16 @@ begin
     end
     plot!()
 end
-
+g_plot = g_rtree
 begin
     fig = draw(shadows.geometry;
         figure_params=Dict(:location=>(52.904, -1.18), :zoom_start=>14),
         fill_opacity=0.5,
         color=:black)
     draw!(fig, buildings.geometry)
-    draw!(fig, g, :vertices)
-    draw!(fig, g, :edges)
-    draw!(fig, g, :shadowgeom)
-    draw!(fig, get_prop(g, 8,717, :shadowgeom))
+    draw!(fig, g_plot, :vertices)
+    draw!(fig, g_plot, :edgegeom)
+    draw!(fig, g_plot, :shadowgeom)
 end
 
 
@@ -145,3 +154,26 @@ using GeoInterface
 
 @code_warntype MinistryOfCoolWalks.rebuild_lines(ml, 0.0003)
 @code_warntype MinistryOfCoolWalks.rebuild_lines([l1, l2], 0.0003)
+
+tree84 = build_rtree(shadows2.geometry);
+
+tree84.root.mbr.low
+tree84.root.mbr.high
+
+_, g_rtree = shadow_graph_from_file(joinpath(datapath, "test_nottingham.json"))
+lines_rtree = add_shadow_intervals_rtree!(g_rtree, shadows);
+
+ext = GeoInterface.extent(shadows2.geometry[1])
+collect(zip(values(ext)...))
+
+lines_rtree.root.mbr.low
+fieldnames(SpatialIndexing.Rect)
+function draw_tree!(p, tree::RTree)
+    draw_tree!(p, tree.root)
+end
+
+function draw_tree!(p, branch::SpatialIndexing.Branch)
+    low = branch.mbr.
+
+
+end

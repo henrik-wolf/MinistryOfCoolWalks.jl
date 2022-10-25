@@ -239,8 +239,12 @@ function add_shadow_intervals_rtree!(g, shadows)
     project_local!(shadows.geometry, center_lon, center_lat)
     project_local!(g, center_lon, center_lat)
 
+    df = DataFrame()
+
+    local_crs = get_prop(g, :crs)
     shadow_tree = build_rtree(shadows.geometry)
 
+    #return shadow_tree
     @showprogress 1 "adding shadows" for edge in edges(g)
         !has_prop(g, edge, :edgegeom) && continue  # skip helpers
         linestring = get_prop(g, edge, :edgegeom)::EdgeGeomType
@@ -252,14 +256,21 @@ function add_shadow_intervals_rtree!(g, shadows)
         intersecting_elements = SpatialIndexing.intersects_with(shadow_tree, linestring_rect) 
         TreeIntersectionType = eltype(intersecting_elements)
         for spatialElement::TreeIntersectionType in intersecting_elements
+        #for row in eachrow(shadows)
             prep_geom = spatialElement.val.prep
+            #prep_geom = ArchGDAL.preparegeom(row.geometry)
+
             not_inter = !ArchGDAL.intersects(prep_geom, linestring)  # prepared geometry has only two functions it actually works with.
             not_inter && continue  # skip disjoint geometry
+            
             orig_geom = spatialElement.val.orig#::ArchGDAL.IGeometry{ArchGDAL.wkbPolygon}
+            #orig_geom = row.geometry
+
             part_in_shadow = ArchGDAL.intersection(orig_geom, linestring)::EdgeGeomType
             total_shadow_part_lengths += ArchGDAL.geomlength(part_in_shadow)
             full_shadow = ArchGDAL.union(full_shadow, part_in_shadow)::EdgeGeomType
         end
+
         # skip all edges not in the shadow
         total_shadow_part_lengths == 0.0 && continue
 
@@ -281,6 +292,7 @@ function add_shadow_intervals_rtree!(g, shadows)
         set_prop!(g, edge, :shadowed_part_length, total_shadow_part_lengths)
         
         full_shadow = rebuild_lines(full_shadow, MIN_DIST)
+        reinterp_crs!(full_shadow, local_crs)
         set_prop!(g, edge, :shadowgeom, full_shadow)
 
         length_in_shadow = ArchGDAL.geomlength(full_shadow)
@@ -296,21 +308,31 @@ function add_shadow_intervals_rtree!(g, shadows)
         if diff < -0.1
             @warn "the sum of the parts length is less than the length of the union for edge $edge (by $diff m)"
         end
+        push!(df, Dict(
+            :edge=>get_prop(g, edge, :osm_id),
+            :sl=>get_prop(g, edge, :shadowed_length),
+            :spl=>get_prop(g, edge, :shadowed_part_length),
+            :fl=>get_prop(g, edge, :full_length)
+        ); cols=:union)
     end
     #project all stuff back
     project_back!(shadows.geometry)
     project_back!(g)
-    return nothing
+    return df
 end
 
 
-function add_shadow_intervals_rtree_start!(g, shadows, method=:reconstruct)
+function add_shadow_intervals_rtree_start!(g, shadows, method=:buffer)
     BUFFER = 1e-4  # TODO: fix this value at something reasonable. also... maybe reconstruct the lines anyway??
     MIN_DIST = 1e-4  # TODO: same as BUFFER
 
     # project all stuff into local system
-    project_local!(shadows.geometry, -1.1825, 52.905)
-    project_local!(g, -1.1825, 52.905)
+    center_lon = metadata(shadows, "center_lon")
+    center_lat = metadata(shadows, "center_lat")
+
+    # project all stuff into local system
+    project_local!(shadows.geometry, center_lon, center_lat)
+    project_local!(g, center_lon, center_lat)
 
     shadow_tree = build_rtree(shadows.geometry)
 
