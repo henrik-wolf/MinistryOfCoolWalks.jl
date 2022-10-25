@@ -13,6 +13,7 @@ module MinistryOfCoolWalks
     using SpatialIndexing
 
     const OSM_ref = Ref{ArchGDAL.ISpatialRef}()
+    const EdgeGeomType = Union{ArchGDAL.IGeometry{ArchGDAL.wkbLineString}, ArchGDAL.IGeometry{ArchGDAL.wkbMultiLineString}}
     function __init__()
         # for ease of setup.
         OSM_ref[] = ArchGDAL.importEPSG(4326; order=:trad)
