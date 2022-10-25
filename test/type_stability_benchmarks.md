@@ -71,6 +71,7 @@ BenchmarkTools.Trial: 14 samples with 1 evaluation.
 ```
 
 ## after. using R-Trees and julia optimisations, mainly type stable, O(edges*ld(shadows))
+```
 BenchmarkTools.Trial: 139 samples with 1 evaluation.
  Range (min … max):  146.543 ms … 668.627 ms  ┊ GC (min … max): 0.00% … 19.78%
  Time  (median):     168.785 ms               ┊ GC (median):    0.00%
@@ -81,5 +82,5 @@ BenchmarkTools.Trial: 139 samples with 1 evaluation.
   147 ms           Histogram: frequency by time          527 ms <
 
  Memory estimate: 15.31 MiB, allocs estimate: 250015.
-
+```
  ## 50 times speedup?
