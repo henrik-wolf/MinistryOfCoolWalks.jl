@@ -58,11 +58,10 @@ function cast_shadow(buildings_df, height_key, sun_direction::AbstractArray)
     return shadow_df
 end
 
-rebuild_lines(lines, min_dist) = rebuild_lines(geomtrait(lines), lines, min_dist)
-rebuild_lines(::LineStringTrait, lines, min_dist) = lines
-rebuild_lines(::MultiLineStringTrait, lines, min_dist) = rebuild_lines(nothing, getgeom(lines), min_dist)
+rebuild_lines(line::ArchGDAL.IGeometry{ArchGDAL.wkbLineString}, min_dist) = line
+rebuild_lines(lines::ArchGDAL.IGeometry{ArchGDAL.wkbMultiLineString}, min_dist)::EdgeGeomType = rebuild_lines(getgeom(lines), min_dist)
 
-function rebuild_lines(::Nothing, lines, min_dist)
+function rebuild_lines(lines, min_dist)::EdgeGeomType
     lines = collect(lines)  # make sure lines are indexable
     # TODO: this calculates every distance twice... but the syntax is absoulutely gorgeous
     adjacency = [GeoInterface.distance(a,b) < min_dist for a in lines, b in lines]
@@ -78,7 +77,7 @@ function rebuild_lines(::Nothing, lines, min_dist)
     if length(disjunct_lines) == 1
         return first(disjunct_lines)
     else
-        ret_multiline = ArchGDAL.createmultilinestring()
+        ret_multiline = ArchGDAL.createmultilinestring()::ArchGDAL.IGeometry{ArchGDAL.wkbMultiLineString}
         for geom in disjunct_lines
             ArchGDAL.addgeom!(ret_multiline, geom)
         end
@@ -107,18 +106,18 @@ function combine_lines(a, b, min_dist)
         # - overlap is at the start of a and b
         # - overlap is at the start of a and end of b
         # - overlap is at the end of a and start of b
-        a_indices = a_points2b[1] < min_dist ? (ngeom(a):-1:1) : (1:ngeom(a))
+        a_indices = a_points2b[1] < min_dist ? (ngeom(a):-1:1) : (1:1:ngeom(a))
 
-        b_indices = a2b_points[1] < min_dist ? (1:ngeom(b)) : (ngeom(b):-1:1)
+        b_indices = a2b_points[1] < min_dist ? (1:1:ngeom(b)) : (ngeom(b):-1:1)
 
-        combined = ArchGDAL.createlinestring()
+        combined = ArchGDAL.createlinestring()::ArchGDAL.IGeometry{ArchGDAL.wkbLineString}
         for a_index in a_indices
-            a_point = getgeom(a, a_index)
+            a_point = getgeom(a, a_index)::ArchGDAL.IGeometry{ArchGDAL.wkbPoint}
             ArchGDAL.addpoint!(combined, getcoord(a_point)...)
         end
         for b_index in b_indices
             a2b_points[b_index] < min_dist && continue
-            ArchGDAL.addpoint!(combined, getcoord(getgeom(b, b_index))...)
+            ArchGDAL.addpoint!(combined, getcoord(getgeom(b, b_index)::ArchGDAL.IGeometry{ArchGDAL.wkbPoint})...)
         end
         # we could do some geometry reduction here? (point which are on a line between other points)
         return combined
@@ -229,13 +228,89 @@ function add_shadow_intervals!(g, shadows; method=:reconstruct)
 end
 
 
-function add_shadow_intervals_rtree!(g, shadows, method=:reconstruct)
+function add_shadow_intervals_rtree!(g, shadows)
+    MIN_DIST = 1e-4  # TODO: find out what a reasonable value would be for this.
+
+    # project all stuff into local system
+    center_lon = metadata(shadows, "center_lon")
+    center_lat = metadata(shadows, "center_lat")
+
+    # project all stuff into local system
+    project_local!(shadows.geometry, center_lon, center_lat)
+    project_local!(g, center_lon, center_lat)
+
+    shadow_tree = build_rtree(shadows.geometry)
+
+    @showprogress 1 "adding shadows" for edge in edges(g)
+        !has_prop(g, edge, :edgegeom) && continue  # skip helpers
+        linestring = get_prop(g, edge, :edgegeom)::EdgeGeomType
+        linestring_rect = rect_from_geom(linestring)
+
+        total_shadow_part_lengths = 0.0
+        full_shadow = ArchGDAL.createlinestring()::ArchGDAL.IGeometry{ArchGDAL.wkbLineString}
+
+        intersecting_elements = SpatialIndexing.intersects_with(shadow_tree, linestring_rect) 
+        TreeIntersectionType = eltype(intersecting_elements)
+        for spatialElement::TreeIntersectionType in intersecting_elements
+            prep_geom = spatialElement.val.prep
+            not_inter = !ArchGDAL.intersects(prep_geom, linestring)  # prepared geometry has only two functions it actually works with.
+            not_inter && continue  # skip disjoint geometry
+            orig_geom = spatialElement.val.orig#::ArchGDAL.IGeometry{ArchGDAL.wkbPolygon}
+            part_in_shadow = ArchGDAL.intersection(orig_geom, linestring)::EdgeGeomType
+            total_shadow_part_lengths += ArchGDAL.geomlength(part_in_shadow)
+            full_shadow = ArchGDAL.union(full_shadow, part_in_shadow)::EdgeGeomType
+        end
+        # skip all edges not in the shadow
+        total_shadow_part_lengths == 0.0 && continue
+
+        # add the relevant properties to the graph if not allready there
+        if !has_prop(g, edge, :shadowed_part_length)
+            set_prop!(g, edge, :shadowed_part_length, 0.0)
+        end
+
+        if !has_prop(g, edge, :shadowgeom)
+            set_prop!(g, edge, :shadowgeom, ArchGDAL.createlinestring())
+        end
+
+        if !has_prop(g, edge, :shadowed_length)
+            set_prop!(g, edge, :shadowed_length, 0.0)
+        end
+
+        # update the relevant properties of the graph
+        total_shadow_part_lengths += get_prop(g, edge, :shadowed_part_length)::Float64
+        set_prop!(g, edge, :shadowed_part_length, total_shadow_part_lengths)
+        
+        full_shadow = rebuild_lines(full_shadow, MIN_DIST)
+        set_prop!(g, edge, :shadowgeom, full_shadow)
+
+        length_in_shadow = ArchGDAL.geomlength(full_shadow)
+        set_prop!(g, edge, :shadowed_length, length_in_shadow)
+
+
+        # this could be factored out... (but is set only once, at the cost of a has_prop call...)
+        if !has_prop(g, edge, :full_length)
+            set_prop!(g, edge, :full_length, ArchGDAL.geomlength(get_prop(g, edge, :edgegeom)::ArchGDAL.IGeometry{ArchGDAL.wkbLineString}))
+        end
+
+        diff = get_prop(g, edge, :shadowed_part_length)::Float64 - length_in_shadow
+        if diff < -0.1
+            @warn "the sum of the parts length is less than the length of the union for edge $edge (by $diff m)"
+        end
+    end
+    #project all stuff back
+    project_back!(shadows.geometry)
+    project_back!(g)
+    return nothing
+end
+
+
+function add_shadow_intervals_rtree_start!(g, shadows, method=:reconstruct)
     BUFFER = 1e-4  # TODO: fix this value at something reasonable. also... maybe reconstruct the lines anyway??
     MIN_DIST = 1e-4  # TODO: same as BUFFER
 
     # project all stuff into local system
-    project_local!(shadows.geometry, metadata(shadows, "center_lon"), metadata(shadows, "center_lat"))
-    project_local!(g, metadata(shadows, "center_lon"), metadata(shadows, "center_lat"))
+    project_local!(shadows.geometry, -1.1825, 52.905)
+    project_local!(g, -1.1825, 52.905)
 
     shadow_tree = build_rtree(shadows.geometry)
 

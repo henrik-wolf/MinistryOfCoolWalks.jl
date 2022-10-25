@@ -1,5 +1,6 @@
 function project_local!(geo_column, center_lon, center_lat)
     projstring = "+proj=tmerc +lon_0=$center_lon +lat_0=$center_lat"
+    #println(projstring)
     src = ArchGDAL.getspatialref(first(geo_column))
     dest = ArchGDAL.importPROJ4(projstring)
     ArchGDAL.createcoordtrans(trans->project_geo_column!(geo_column, trans), src, dest)
@@ -18,6 +19,7 @@ end
 
 function project_local!(g::T, center_lon, center_lat) where {T<:AbstractMetaGraph}
     projstring = "+proj=tmerc +lon_0=$center_lon +lat_0=$center_lat"
+    #println(projstring)
     src = get_prop(g, :crs)
     dest = ArchGDAL.importPROJ4(projstring)
     ArchGDAL.createcoordtrans(trans->project_graph_edges!(g, trans), src, dest)
@@ -34,10 +36,10 @@ end
 function project_graph_edges!(g, trans)
     for edge in edges(g)
         if has_prop(g, edge, :edgegeom)
-            ArchGDAL.transform!(get_prop(g, edge, :edgegeom), trans)
+            ArchGDAL.transform!(get_prop(g, edge, :edgegeom)::EdgeGeomType, trans)
         end
         if has_prop(g, edge, :shadowgeom)
-            ArchGDAL.transform!(get_prop(g, edge, :shadowgeom), trans)
+            ArchGDAL.transform!(get_prop(g, edge, :shadowgeom)::EdgeGeomType, trans)
         end
     end
 end

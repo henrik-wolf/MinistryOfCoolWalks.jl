@@ -9,19 +9,28 @@ using Folium
 using GeoInterface
 using DataFrames
 using SpatialIndexing
+using JET
+using BenchmarkTools
+
 
 datapath = joinpath(homedir(), "Desktop/Masterarbeit/data/Nottingham/")
 buildings = load_british_shapefiles(joinpath(datapath, "Nottingham.shp"); bbox=(minlat=52.89, minlon=-1.2, maxlat=52.92, maxlon=-1.165))
 shadows = cast_shadow(buildings, :height_mean, [1.0, -0.5, 0.4])
 trees = load_nottingham_trees(joinpath(datapath, "trees/trees_full_rest.csv"); bbox=(minlat=52.89, minlon=-1.2, maxlat=52.92, maxlon=-1.165))
 
+metadata(shadows, "center_lon")
 
-_, g = shadow_graph_from_file(joinpath(datapath, "test_nottingham.json"))
-lines_normal = add_shadow_intervals_rtree!(g, shadows)
 
-@code_warntype add_shadow_intervals_rtree!(g, shadows, :reconstruct)
-@time add_shadow_intervals_rtree!(g, shadows)
+_, g_base = shadow_graph_from_file(joinpath(datapath, "test_nottingham.json"))
+lines_normal = add_shadow_intervals_rtree!(g_base, shadows)
+
+@benchmark add_shadow_intervals_rtree!(g, shadows) seconds=10 setup=(g = deepcopy($g_base))
+
+print(@report_opt add_shadow_intervals_rtree!(g_base, shadows))
+@code_warntype add_shadow_intervals_rtree!(g_base, shadows)
+@time add_shadow_intervals_rtree!(g, shadows);
 @profview add_shadow_intervals_rtree!(g, shadows)
+@report_opt DataFrame()
 
 function test()
     df = DataFrame()
@@ -95,3 +104,44 @@ bbox
 
 e = GeoInterface.extent(br)
 values(e)
+
+@code_warntype ArchGDAL.createlinestring()
+
+using SpatialIndexing
+
+typeof(intersection)
+
+eltype(intersection)
+
+eltype(intersection)
+
+fiter = iterate(intersection)
+
+function treeiteration()
+    seq_tree = RTree{Float64, 2}(Int, String, leaf_capacity = 20, branch_capacity = 20)
+    for i in 1:100
+        x = rand()
+        y = rand()
+        insert!(seq_tree, SpatialIndexing.Rect((x, y), (x, y)), i, string(i))
+    end
+    intersection = SpatialIndexing.intersects_with(seq_tree, SpatialIndexing.Rect((0, 0), (0.4, 0.4)))
+    for i in intersection
+        typeof(i)
+    end
+end
+
+@code_warntype _iterate(intersection, fiter[2])
+
+l1 = ArchGDAL.createlinestring(collect(0.0:5.0), fill(0, 5))
+
+l2 = ArchGDAL.createlinestring([4.2, 6.9, 7.3], [0.0, 0.0, 3.5])
+ml = ArchGDAL.createmultilinestring()
+ArchGDAL.addgeom!(ml, l1)
+ArchGDAL.addgeom!(ml, l2)
+using Plots
+plot(l1)
+plot!(l2)
+using GeoInterface
+
+@code_warntype MinistryOfCoolWalks.rebuild_lines(ml, 0.0003)
+@code_warntype MinistryOfCoolWalks.rebuild_lines([l1, l2], 0.0003)
