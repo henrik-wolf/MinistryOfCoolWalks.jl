@@ -63,11 +63,28 @@ rebuild_lines(lines::ArchGDAL.IGeometry{ArchGDAL.wkbMultiLineString}, min_dist):
 
 function rebuild_lines(lines, min_dist)::EdgeGeomType
     lines = collect(lines)  # make sure lines are indexable
+    nlines = length(lines)
+    adjacency = falses(nlines, nlines)
+    for j in 1:nlines
+        for i in 1:nlines
+            if j==i
+                adjacency[i,j] = false
+            elseif j<i  # frist doing columns, the copy over more and more.
+                adjacency[i, j] = ArchGDAL.distance(lines[i], lines[j]) < min_dist
+            else
+                adjacency[i, j] = adjacency[j, i]
+            end
+        end
+    end
+    
     # TODO: this calculates every distance twice... but the syntax is absoulutely gorgeous
+    #=
     adjacency = [GeoInterface.distance(a,b) < min_dist for a in lines, b in lines]
     for i in first(size(adjacency))
         adjacency[i,i] = false
     end
+    =#
+
     neighbor_graph = SimpleGraph(adjacency)
     component_starts = first.(connected_components(neighbor_graph))
     trees = map(start->dfs_tree(neighbor_graph, start), component_starts)
@@ -155,6 +172,7 @@ function add_shadow_intervals!(g, shadows; method=:reconstruct)
     # project all stuff into local system
     project_local!(shadows.geometry, metadata(shadows, "center_lon"), metadata(shadows, "center_lat"))
     project_local!(g, metadata(shadows, "center_lon"), metadata(shadows, "center_lat"))
+    local_crs = get_prop(g, :crs)
     df = DataFrame()
     @showprogress 1 "adding shadows" for edge in edges(g)
         !has_prop(g, edge, :edgegeom) && continue  # skip helpers
@@ -190,6 +208,7 @@ function add_shadow_intervals!(g, shadows; method=:reconstruct)
         if method === :reconstruct
             full_shadow = rebuild_lines(full_shadow, MIN_DIST)
         end
+        reinterp_crs!(full_shadow, local_crs)
         set_prop!(g, edge, :shadowgeom, full_shadow)
 
         length_in_shadow = if method === :reconstruct
@@ -232,8 +251,8 @@ function add_shadow_intervals_rtree!(g, shadows)
     MIN_DIST = 1e-4  # TODO: find out what a reasonable value would be for this.
 
     # project all stuff into local system
-    center_lon = metadata(shadows, "center_lon")
-    center_lat = metadata(shadows, "center_lat")
+    center_lon = metadata(shadows, "center_lon")::Float64
+    center_lat = metadata(shadows, "center_lat")::Float64
 
     # project all stuff into local system
     project_local!(shadows.geometry, center_lon, center_lat)

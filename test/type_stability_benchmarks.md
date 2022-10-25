@@ -42,13 +42,42 @@ BenchmarkTools.Trial: 32 samples with 1 evaluation.
 ```
 
 ## After fixing problems in the way I build the R-Tree
-BenchmarkTools.Trial: 16 samples with 1 evaluation.
- Range (min … max):  544.607 ms … 856.762 ms  ┊ GC (min … max): 0.00% … 16.95%
- Time  (median):     623.116 ms               ┊ GC (median):    0.00%
- Time  (mean ± σ):   658.630 ms ± 110.019 ms  ┊ GC (mean ± σ):  5.24% ±  6.97%
+```
+BenchmarkTools.Trial: 48 samples with 1 evaluation.
+ Range (min … max):  153.323 ms … 463.462 ms  ┊ GC (min … max): 0.00% … 27.76%
+ Time  (median):     171.417 ms               ┊ GC (median):    0.00%
+ Time  (mean ± σ):   200.676 ms ±  79.300 ms  ┊ GC (mean ± σ):  6.06% ±  8.29%
 
-          █                                                 ▃    
-  ▇▁▇▁▇▁▁▁█▁▇▁▁▇▁▁▇▇▇▁▇▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▁▁▁▁▁▁▁█▁▇ ▁
-  545 ms           Histogram: frequency by time          857 ms <
+  ▄█▄█ ▃                                                         
+  ████▇█▆▁▁▁▆▄▁▁▁▁▁▁▁▁▄▁▁▁▁▁▄▁▁▁▁▁▁▁▁▁▁▄▁▄▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▄▁▁▆ ▁
+  153 ms           Histogram: frequency by time          463 ms <
 
- Memory estimate: 44.65 MiB, allocs estimate: 1168353.
+ Memory estimate: 17.30 MiB, allocs estimate: 303478
+ ```
+
+# Ok. lets do this in the correct way, with code which actually does what I want.
+## before. Neive implementation, O(edges*shadows)
+```
+BenchmarkTools.Trial: 14 samples with 1 evaluation.
+ Range (min … max):  8.426 s …   10.128 s  ┊ GC (min … max): 1.74% … 3.31%
+ Time  (median):     8.876 s               ┊ GC (median):    2.40%
+ Time  (mean ± σ):   9.006 s ± 457.832 ms  ┊ GC (mean ± σ):  2.48% ± 1.04%
+
+  ▁  ▁  ▁     ▁█▁▁    ▁▁   ▁  ▁              ▁             ▁  
+  █▁▁█▁▁█▁▁▁▁▁████▁▁▁▁██▁▁▁█▁▁█▁▁▁▁▁▁▁▁▁▁▁▁▁▁█▁▁▁▁▁▁▁▁▁▁▁▁▁█ ▁
+  8.43 s         Histogram: frequency by time         10.1 s <
+
+ Memory estimate: 275.02 MiB, allocs estimate: 17663244.
+```
+
+## after. using R-Trees and julia optimisations, mainly type stable, O(edges*ld(shadows))
+BenchmarkTools.Trial: 139 samples with 1 evaluation.
+ Range (min … max):  146.543 ms … 668.627 ms  ┊ GC (min … max): 0.00% … 19.78%
+ Time  (median):     168.785 ms               ┊ GC (median):    0.00%
+ Time  (mean ± σ):   197.579 ms ±  82.806 ms  ┊ GC (mean ± σ):  4.68% ±  7.22%
+
+  ▄█▇▅ ▂                                                         
+  ███████▅▃▃▄▃▁▃▁▁▃▃▁▃▁▃▁▃▁▃▁▁▁▁▁▃▁▁▁▁▃▁▁▁▁▃▁▁▁▁▁▁▃▃▃▁▁▁▁▁▁▁▁▁▃ ▃
+  147 ms           Histogram: frequency by time          527 ms <
+
+ Memory estimate: 15.31 MiB, allocs estimate: 250015.

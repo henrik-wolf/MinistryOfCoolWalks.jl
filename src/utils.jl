@@ -46,7 +46,10 @@ end
 
 function rect_from_geom(geom)
     extent = GeoInterface.extent(geom)
-    return SpatialIndexing.Rect(zip(values(extent)...)...)
+    x, y = values(extent)
+    ll = (x[1], y[1])  # less beautiful, but typestable
+    ur = (x[2], y[2])
+    return SpatialIndexing.Rect(ll, ur)
 end
 
 # temporary, for working with prepared geometry

@@ -15,12 +15,13 @@ using BenchmarkTools
 
 datapath = joinpath(homedir(), "Desktop/Masterarbeit/data/Nottingham/")
 buildings = load_british_shapefiles(joinpath(datapath, "Nottingham.shp"); bbox=(minlat=52.89, minlon=-1.2, maxlat=52.92, maxlon=-1.165))
-shadows = cast_shadow(buildings, :height_mean, [1.0, -0.5, 0.1])
+shadows = cast_shadow(buildings, :height_mean, [1.0, -0.5, 0.4])
 shadows2 = cast_shadow(buildings, :height_mean, [1.0, -0.5, 0.1])
 trees = load_nottingham_trees(joinpath(datapath, "trees/trees_full_rest.csv"); bbox=(minlat=52.89, minlon=-1.2, maxlat=52.92, maxlon=-1.165))
 
 metadata(shadows, "center_lon")
 
+_, g_base = shadow_graph_from_file(joinpath(datapath, "test_nottingham.json"))
 
 _, g_normal = shadow_graph_from_file(joinpath(datapath, "test_nottingham.json"))
 lines_normal = add_shadow_intervals!(g_normal, shadows)
@@ -30,11 +31,13 @@ lines_rtree = add_shadow_intervals_rtree!(g_rtree, shadows)
 lines_normal
 lines_rtree
 
-
+using Plots
+scatter(lines_normal.sl - lines_rtree.sl)
 
 get_prop(g_base, :crs)
 
-@benchmark add_shadow_intervals_rtree!(g, shadows) seconds=5 setup=(g = deepcopy($g_base))
+@benchmark add_shadow_intervals_rtree!(g, $shadows) seconds=30 setup=(g = deepcopy($g_base))
+@benchmark add_shadow_intervals!(g, $shadows) seconds=120 setup=(g = deepcopy($g_base))
 
 print(@report_opt add_shadow_intervals_rtree!(g_base, shadows))
 @code_warntype add_shadow_intervals_rtree!(g_base, shadows)
@@ -173,7 +176,32 @@ function draw_tree!(p, tree::RTree)
 end
 
 function draw_tree!(p, branch::SpatialIndexing.Branch)
-    low = branch.mbr.
+    low = branch.mbr
 
 
 end
+rect_from_geom(ls)
+
+rect_from_geom(ls)
+
+ls = get_prop(g_rtree, 8, 717, :edgegeom)
+@code_warntype rect_from_geom(ls)
+
+x, y = zip((1,2), (3,4))
+
+x
+y
+
+mat = falses(10, 10)
+for j in 1:10
+    for i in 1:10
+        if j==i
+            mat[i,j] = false
+        elseif j<i
+            mat[i, j] = rand() < 0.8
+        else
+            mat[i, j] = mat[j, i]
+        end
+    end
+end
+mat
