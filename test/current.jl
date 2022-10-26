@@ -18,7 +18,7 @@ buildings = load_british_shapefiles(joinpath(datapath, "Nottingham.shp"); bbox=(
 shadows = cast_shadow(buildings, :height_mean, [1.0, -0.5, 0.4])
 trees = load_nottingham_trees(joinpath(datapath, "trees/trees_full_rest.csv"); bbox=(minlat=52.89, minlon=-1.2, maxlat=52.92, maxlon=-1.165))
 
-_, g_base = shadow_graph_from_file(joinpath(datapath, "test_nottingham.json"))
+g_osm, g_base = shadow_graph_from_file(joinpath(datapath, "test_nottingham.json"))
 
 begin
     _, g_rtree = shadow_graph_from_file(joinpath(datapath, "test_nottingham.json"))
@@ -66,7 +66,7 @@ end
 g_plot = g_rtree
 begin
     fig = draw(shadows.geometry;
-        figure_params=Dict(:location=>(52.904, -1.18), :zoom_start=>14),
+        figure_params=Dict(:location=>(52.904, -1.18), :zoom_start=>14, :width=>500, :height=>500),
         fill_opacity=0.5,
         color=:black)
     draw!(fig, buildings.geometry)
@@ -204,3 +204,12 @@ for j in 1:10
     end
 end
 mat
+
+all_tag_dicts = [i.tags for i in values(g_osm.ways)]
+
+mapreduce(x->haskey(x, "highway"), (x,y)->x+y, all_tag_dicts; init=0)
+
+
+tags = Set(vcat(collect.(keys.(all_tag_dicts))...))
+
+used_values = Dict(tag=>collect(Set(get(d, tag, "") for d in all_tag_dicts if haskey(d, tag))) for tag in tags)
