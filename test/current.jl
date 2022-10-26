@@ -16,16 +16,14 @@ using BenchmarkTools
 datapath = joinpath(homedir(), "Desktop/Masterarbeit/data/Nottingham/")
 buildings = load_british_shapefiles(joinpath(datapath, "Nottingham.shp"); bbox=(minlat=52.89, minlon=-1.2, maxlat=52.92, maxlon=-1.165))
 shadows = cast_shadow(buildings, :height_mean, [1.0, -0.5, 0.4])
-shadows2 = cast_shadow(buildings, :height_mean, [1.0, -0.5, 0.1])
 trees = load_nottingham_trees(joinpath(datapath, "trees/trees_full_rest.csv"); bbox=(minlat=52.89, minlon=-1.2, maxlat=52.92, maxlon=-1.165))
-
-metadata(shadows, "center_lon")
 
 _, g_base = shadow_graph_from_file(joinpath(datapath, "test_nottingham.json"))
 
-_, g_normal = shadow_graph_from_file(joinpath(datapath, "test_nottingham.json"))
-lines_normal = add_shadow_intervals!(g_normal, shadows)
-_, g_rtree = shadow_graph_from_file(joinpath(datapath, "test_nottingham.json"))
+begin
+    _, g_rtree = shadow_graph_from_file(joinpath(datapath, "test_nottingham.json"))
+    correct_centerlines!(g_rtree, buildings)
+end
 lines_rtree = add_shadow_intervals_rtree!(g_rtree, shadows)
 
 lines_normal
@@ -75,6 +73,7 @@ begin
     draw!(fig, g_plot, :vertices)
     draw!(fig, g_plot, :edgegeom)
     draw!(fig, g_plot, :shadowgeom)
+    draw!(fig, g_plot, :edges)
 end
 
 

@@ -34,4 +34,7 @@ module MinistryOfCoolWalks
 
     export build_rtree
     include("rtree_building.jl")
+
+    export correct_centerlines!
+    include("centerline_correction.jl")
 end
