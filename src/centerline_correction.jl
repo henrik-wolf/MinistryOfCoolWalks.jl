@@ -32,6 +32,8 @@ function correct_centerlines!(g, buildings)
 
     # TODO: figure out rotational direction of network
 
+    building_tree = build_rtree(buildings.geometry)
+
     for edge in edges(g)
         !has_prop(g, edge, :edgegeom) && continue  # skip helpers
         linestring = get_prop(g, edge, :edgegeom)
@@ -39,12 +41,19 @@ function correct_centerlines!(g, buildings)
         # TODO: estimate offset width of edge
         offset_dist = 4
         # TODO: offset edge
-        offest_edge = offset_line(linestring, offset_dist)
-
+        offset_linestring = offset_line(linestring, offset_dist)
+        offset_linestring_rect = rect_from_geom(offset_linestring)
         # TODO: check for overlap with building polygons something something R-Tree)
+        coarse_intersection = SpatialIndexing.intersects_with(building_tree, offset_linestring_rect)
+        for spatialElement in coarse_intersection
+            prep_geom = spatialElement.val.prep
+            not_inter = !ArchGDAL.intersects(prep_geom, offset_linestring)
+            not_inter && continue  # skip disjoint buildings
+            @warn "edge $edge with osmid $(get_prop(g, edge, :osm_id)) has been moved into a building."
+        end
         # TODO: if intersection: move back, else, ok
         # TODO: set new edgegeom\
-        set_prop!(g, edge, :edgegeom, offest_edge)
+        set_prop!(g, edge, :edgegeom, offset_linestring)
     end
     #project all stuff back
     project_back!(buildings.geometry)
