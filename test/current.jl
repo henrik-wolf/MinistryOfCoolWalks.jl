@@ -13,15 +13,26 @@ using JET
 using BenchmarkTools
 
 
-datapath = joinpath(homedir(), "Desktop/Masterarbeit/data/Nottingham/")
+datapath = joinpath(homedir(), "Desktop/Masterarbeit/data/Nottingham/clifton")
 buildings = load_british_shapefiles(joinpath(datapath, "Nottingham.shp"); bbox=(minlat=52.89, minlon=-1.2, maxlat=52.92, maxlon=-1.165))
 shadows = cast_shadow(buildings, :height_mean, [1.0, -0.5, 0.4])
 trees = load_nottingham_trees(joinpath(datapath, "trees/trees_full_rest.csv"); bbox=(minlat=52.89, minlon=-1.2, maxlat=52.92, maxlon=-1.165))
 
-g_osm, g_base = shadow_graph_from_file(joinpath(datapath, "test_nottingham.json"))
+g_osm_bike, g_bike = shadow_graph_from_file(joinpath(datapath, "test_clifton_bike.json"); network_type=:bike)
+g_osm_drive, g_drive = shadow_graph_from_file(joinpath(datapath, "test_clifton.json"))
 
 begin
-    _, g_rtree = shadow_graph_from_file(joinpath(datapath, "test_nottingham.json"))
+    fig = draw(g_base, :vertices;
+        figure_params=Dict(:location=>(52.904, -1.18), :zoom_start=>14),
+        radius=3,
+        color=:red)
+    draw!(fig, g_bike, :edges; color=:red, opacity=0.5, weight=5)
+    draw!(fig, g_drive, :vertices; radius=1.5, color=:black, opacity=0.6)
+    draw!(fig, g_drive, :edges; color=:black, opacity=0.3)
+end
+
+begin
+    _, g_rtree = shadow_graph_from_file(joinpath(datapath, "test_clifton_bike.json"); network_type=:bike)
     correct_centerlines!(g_rtree, buildings)
 end
 lines_rtree = add_shadow_intervals_rtree!(g_rtree, shadows)
@@ -66,7 +77,7 @@ end
 g_plot = g_rtree
 begin
     fig = draw(shadows.geometry;
-        figure_params=Dict(:location=>(52.904, -1.18), :zoom_start=>14, :width=>500, :height=>500),
+        figure_params=Dict(:location=>(52.904, -1.18), :zoom_start=>14),
         fill_opacity=0.5,
         color=:black)
     draw!(fig, buildings.geometry)
@@ -74,6 +85,7 @@ begin
     draw!(fig, g_plot, :edgegeom)
     draw!(fig, g_plot, :shadowgeom)
     draw!(fig, g_plot, :edges)
+    draw!(fig, 0.0, 0.0, :circle; radius=500)
 end
 
 
@@ -205,7 +217,7 @@ for j in 1:10
 end
 mat
 
-all_tag_dicts = [i.tags for i in values(g_osm.ways)]
+all_tag_dicts = [i.tags for i in values(g_osm_bike.ways)]
 
 mapreduce(x->haskey(x, "highway"), (x,y)->x+y, all_tag_dicts; init=0)
 
@@ -213,3 +225,8 @@ mapreduce(x->haskey(x, "highway"), (x,y)->x+y, all_tag_dicts; init=0)
 tags = Set(vcat(collect.(keys.(all_tag_dicts))...))
 
 used_values = Dict(tag=>collect(Set(get(d, tag, "") for d in all_tag_dicts if haskey(d, tag))) for tag in tags)
+
+used_values["highway"]
+
+
+MinistryOfCoolWalks.get_rotational_direction(g_bike)
