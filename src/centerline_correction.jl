@@ -101,17 +101,17 @@ end
 
 function check_building_intersection(building_tree, offset_linestring)
         offset_linestring_rect = rect_from_geom(offset_linestring)
-        intersecting_ids = Int[]
+        intersecting_geom = []
         # check for intersection with buildings.
         coarse_intersection = SpatialIndexing.intersects_with(building_tree, offset_linestring_rect)
         for spatialElement in coarse_intersection
             prep_geom = spatialElement.val.prep
             not_inter = !ArchGDAL.intersects(prep_geom, offset_linestring)
             not_inter && continue  # skip disjoint buildings
-            push!(intersecting_ids, spatialElement.id)
+            push!(intersecting_geom, spatialElement.val.orig)
             #@warn "edge $edge with osmid $(get_prop(g, edge, :osm_id)) intersect with a building."
         end
-        return intersecting_ids
+        return intersecting_geom
 end
 
 function correct_centerlines!(g, buildings)
@@ -125,13 +125,12 @@ function correct_centerlines!(g, buildings)
     offset_dir = get_prop(g, :offset_dir)
     building_tree = build_rtree(buildings.geometry)
 
-    for edge in edges(g)
+    @showprogress 1 "correcting centerlines" for edge in edges(g)
         !has_prop(g, edge, :edgegeom) && continue  # skip edges without geometry
         linestring = get_prop(g, edge, :edgegeom)
-        id = get_prop(g, edge, :osm_id)
 
         # check if some buildings are intersecting from the start
-        intersecting_building_before = check_building_intersection(building_tree, linestring)
+        intersecting_buildings_before = check_building_intersection(building_tree, linestring)
 
         # the direction of the geometry of each edge should always point in the same direction as the edge (I believe I parse it that way)
         
@@ -139,19 +138,21 @@ function correct_centerlines!(g, buildings)
 
         if abs(offset_dist) > 0
             offset_linestring = offset_line(linestring, offset_dist)
-        else
-            # just to check if the original line does not accidentaly touch a building.
-            offset_linestring = linestring
+
+            # check for new intersections and move line back, until they are gone
+            intersecting_buildings_after = check_building_intersection(building_tree, offset_linestring)
+            if length(intersecting_buildings_before) < length(intersecting_buildings_after)
+                distance_factor = 0.9
+                min_dist = minimum(filter(x->x>1e-8, [ArchGDAL.distance(linestring, building) for building in intersecting_buildings_after]))
+                while distance_factor >= 0 && length(intersecting_buildings_before) < length(intersecting_buildings_after)
+                    offset_linestring = offset_line(linestring, min_dist * distance_factor)
+                    intersecting_buildings_after = check_building_intersection(building_tree, offset_linestring)
+                    distance_factor -= 0.1
+                end
+            end
+
+            set_prop!(g, edge, :edgegeom, offset_linestring)
         end
-
-        intersection_buildings_after = check_building_intersection(building_tree, offset_linestring)
-        if length(intersecting_building_before) < length(intersection_buildings_after)
-            @warn "due to offsetting, some new intersections with buildings emerged in way $id, buildings: $intersection_buildings_after"
-        end
-
-
-        # TODO: if intersection: move back, else, ok
-        set_prop!(g, edge, :edgegeom, offset_linestring)
     end
     #project all stuff back
     project_back!(buildings.geometry)
