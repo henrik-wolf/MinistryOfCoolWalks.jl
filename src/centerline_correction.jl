@@ -6,16 +6,18 @@ function offset_line(line, distance)
 	y = [i[2] for i in points]
 	# TODO: figure out how to handle endpoints
 	deltas = [norm([y[2]-y[1], -(x[2]-x[1])])]
-	# for everything not endpoints, calculate offset direction and offset the points
+	# for everything not endpoints, calculate offset direction of edge
 	for i in 2:length(points)
-		direction = [y[i]-y[i-1], -(x[i]-x[i-1])]
-		push!(deltas, norm(direction))
+		direction = norm([y[i]-y[i-1], -(x[i]-x[i-1])])
+		push!(deltas, direction)
 	end
 	push!(deltas, norm([y[end]-y[end-1], -(x[end]-x[end-1])]))
-	directions = norm.(deltas[1:end-1] .+ deltas[2:end])
+	node_directions = norm.(deltas[1:end-1] .+ deltas[2:end])
+    scalar_products = [node_dir' * edge_dir for (node_dir, edge_dir) in zip(node_directions, deltas)]
+    node_directions ./= scalar_products
 	
 	new_line = ArchGDAL.createlinestring()
-    for point in points + distance * directions
+    for point in points + distance * node_directions
         ArchGDAL.addpoint!(new_line, point...)
     end
     reinterp_crs!(new_line, ArchGDAL.getspatialref(line))
@@ -145,7 +147,8 @@ function correct_centerlines!(g, buildings)
                 distance_factor = 0.9
                 min_dist = minimum(filter(x->x>1e-8, [ArchGDAL.distance(linestring, building) for building in intersecting_buildings_after]))
                 while distance_factor >= 0 && length(intersecting_buildings_before) < length(intersecting_buildings_after)
-                    offset_linestring = offset_line(linestring, min_dist * distance_factor)
+                    offset_dist = offset_dir * min_dist * distance_factor
+                    offset_linestring = offset_line(linestring, offset_dist)
                     intersecting_buildings_after = check_building_intersection(building_tree, offset_linestring)
                     distance_factor -= 0.1
                 end
