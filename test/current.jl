@@ -13,13 +13,18 @@ using JET
 using BenchmarkTools
 
 
-datapath = joinpath(homedir(), "Desktop/Masterarbeit/data/Nottingham/clifton")
+datapath = joinpath(homedir(), "Desktop/Masterarbeit/data/Nottingham/")
 buildings = load_british_shapefiles(joinpath(datapath, "Nottingham.shp"); bbox=(minlat=52.89, minlon=-1.2, maxlat=52.92, maxlon=-1.165))
 shadows = cast_shadow(buildings, :height_mean, [1.0, -0.5, 0.4])
 trees = load_nottingham_trees(joinpath(datapath, "trees/trees_full_rest.csv"); bbox=(minlat=52.89, minlon=-1.2, maxlat=52.92, maxlon=-1.165))
 
-g_osm_bike, g_bike = shadow_graph_from_file(joinpath(datapath, "test_clifton_bike.json"); network_type=:bike)
+g_osm_bike, g_bike = shadow_graph_from_file(joinpath(datapath, "clifton/test_clifton_bike.json"); network_type=:bike)
+correct_centerlines!(g_bike, buildings)
 g_osm_drive, g_drive = shadow_graph_from_file(joinpath(datapath, "test_clifton.json"))
+
+get_prop(g_bike, :offset_dir)
+
+vertices(g_bike)
 
 begin
     fig = draw(g_base, :vertices;
@@ -32,7 +37,7 @@ begin
 end
 
 begin
-    _, g_rtree = shadow_graph_from_file(joinpath(datapath, "test_clifton_bike.json"); network_type=:bike)
+    _, g_rtree = shadow_graph_from_file(joinpath(datapath, "clifton/test_clifton_bike.json"); network_type=:bike)
     correct_centerlines!(g_rtree, buildings)
 end
 lines_rtree = add_shadow_intervals_rtree!(g_rtree, shadows)
@@ -74,7 +79,7 @@ begin
     end
     plot!()
 end
-g_plot = g_rtree
+g_plot = g_bike
 begin
     fig = draw(shadows.geometry;
         figure_params=Dict(:location=>(52.904, -1.18), :zoom_start=>14),
@@ -85,7 +90,6 @@ begin
     draw!(fig, g_plot, :edgegeom)
     draw!(fig, g_plot, :shadowgeom)
     draw!(fig, g_plot, :edges)
-    draw!(fig, 0.0, 0.0, :circle; radius=500)
 end
 
 
@@ -218,6 +222,40 @@ end
 mat
 
 all_tag_dicts = [i.tags for i in values(g_osm_bike.ways)]
+
+all_tag_bike = [get_prop(g_bike, edge, :tags) for edge in edges(g_bike) if has_prop(g_bike, edge, :tags)]
+parse_dir_bike = [get_prop(g_bike, edge, :parsing_direction) for edge in edges(g_bike) if has_prop(g_bike, edge, :parsing_direction)]
+begin
+    df = DataFrame()
+    for d in all_tag_bike
+        push!(df, d; cols=:union)
+    end
+    df.parse_dir = parse_dir_bike
+    df.offset_dist = [MinistryOfCoolWalks.guess_offset_distance(i...) for i in zip(all_tag_bike, parse_dir_bike)]
+    select!(df, ["lanes", "lanes:forward", "lanes:backward", "lanes:both_ways", "highway", "width", "oneway", "parse_dir", "offset_dist"])
+end
+
+
+
+all_tag_bike[1]
+MinistryOfCoolWalks.guess_offset_distance(all_tag_bike[1])
+
+
+
+
+using DataFrames
+df = DataFrame()
+df.lanesfwd = [i["lanes:forward"] for (a,i) in all_tag_bike]
+df.lanesbwd = [i["lanes:backward"] for (a,i) in all_tag_bike]
+df.lanes = [i["lanes"] for (a,i) in all_tag_bike]
+df.id_fwd = [a for (a,i) in all_tag_bike]
+df.id_bwd = [a for (a,i) in all_tag_bike]
+df.id_fwd = [a for (a,i) in all_tag_bike]
+
+
+all_keys = vcat(collect.(keys.(all_tag_bike))...)
+
+keycount = [(i, count(==(i), all_keys)) for i in unique(all_keys)]
 
 mapreduce(x->haskey(x, "highway"), (x,y)->x+y, all_tag_dicts; init=0)
 

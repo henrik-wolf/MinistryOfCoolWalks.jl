@@ -23,15 +23,24 @@ function project_local!(g::T, center_lon, center_lat) where {T<:AbstractMetaGrap
     src = get_prop(g, :crs)
     dest = ArchGDAL.importPROJ4(projstring)
     ArchGDAL.createcoordtrans(trans->project_graph_edges!(g, trans), src, dest)
+    ArchGDAL.createcoordtrans(trans->project_graph_nodes!(g, trans), src, dest)
     set_prop!(g, :crs, dest)
 end
 
 function project_back!(g::T) where {T<:AbstractMetaGraph}
     src = get_prop(g, :crs)
     ArchGDAL.createcoordtrans(trans->project_graph_edges!(g, trans), src, OSM_ref[])
+    ArchGDAL.createcoordtrans(trans->project_graph_nodes!(g, trans), src, OSM_ref[])
     set_prop!(g, :crs, OSM_ref[])
 end
 
+function project_graph_nodes!(g, trans)
+    for vertex in vertices(g)
+        if has_prop(g, vertex, :pointgeom)
+            ArchGDAL.transform!(get_prop(g, vertex, :pointgeom), trans)
+        end
+    end
+end
 
 function project_graph_edges!(g, trans)
     for edge in edges(g)
