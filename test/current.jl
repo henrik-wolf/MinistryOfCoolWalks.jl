@@ -20,7 +20,26 @@ trees = load_nottingham_trees(joinpath(datapath, "trees/trees_full_rest.csv"); b
 
 g_osm_bike, g_bike = shadow_graph_from_file(joinpath(datapath, "clifton/test_clifton_bike.json"); network_type=:bike)
 correct_centerlines!(g_bike, buildings)
+add_shadow_intervals_rtree!(g_bike, shadows)
+export_graph_to_csv("test", g_bike; remove_internal_data=false)
+
+
 g_osm_drive, g_drive = shadow_graph_from_file(joinpath(datapath, "test_clifton.json"))
+
+using Plots
+path = get_prop(g_bike, 1676, 1677, :edgegeom)
+shadow = get_prop(g_bike, 1676, 1677,:shadowgeom)
+shadow_parts = get_prop(g_bike, 1676, 1677,:shadowpartgeom)
+
+
+plot(path)
+for line in getgeom(shadow)
+plot!(line, lw=13, alpha=0.4)
+end
+for line in getgeom(shadow_parts)
+    plot!(line, lw=8)
+end
+plot!(size=(2000, 2000))
 
 get_prop(g_bike, :offset_dir)
 
@@ -235,6 +254,7 @@ begin
     select!(df, ["lanes", "lanes:forward", "lanes:backward", "lanes:both_ways", "highway", "width", "oneway", "parse_dir", "offset_dist"])
 end
 
+names(df)
 
 
 all_tag_bike[1]

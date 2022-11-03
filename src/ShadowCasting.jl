@@ -266,6 +266,16 @@ function add_shadow_intervals_rtree!(g, shadows)
     #return shadow_tree
     @showprogress 1 "adding shadows" for edge in edges(g)
         !has_prop(g, edge, :edgegeom) && continue  # skip helpers
+
+        # this could be factored out... (but is set only once, at the cost of a has_prop call...)
+        if !has_prop(g, edge, :full_length)
+            set_prop!(g, edge, :full_length, ArchGDAL.geomlength(get_prop(g, edge, :edgegeom)::ArchGDAL.IGeometry{ArchGDAL.wkbLineString}))
+        end
+
+        if !has_prop(g, edge, :shadowed_length)
+            set_prop!(g, edge, :shadowed_length, 0.0)
+        end
+
         linestring = get_prop(g, edge, :edgegeom)::EdgeGeomType
         linestring_rect = rect_from_geom(linestring)
 
@@ -298,18 +308,20 @@ function add_shadow_intervals_rtree!(g, shadows)
             set_prop!(g, edge, :shadowed_part_length, 0.0)
         end
 
-        if !has_prop(g, edge, :shadowgeom)
-            set_prop!(g, edge, :shadowgeom, ArchGDAL.createlinestring())
+        if !has_prop(g, edge, :shadowpartgeom)
+            set_prop!(g, edge, :shadowpartgeom, ArchGDAL.createlinestring())
         end
 
-        if !has_prop(g, edge, :shadowed_length)
-            set_prop!(g, edge, :shadowed_length, 0.0)
+        if !has_prop(g, edge, :shadowgeom)
+            set_prop!(g, edge, :shadowgeom, ArchGDAL.createlinestring())
         end
 
         # update the relevant properties of the graph
         total_shadow_part_lengths += get_prop(g, edge, :shadowed_part_length)::Float64
         set_prop!(g, edge, :shadowed_part_length, total_shadow_part_lengths)
-        
+
+        set_prop!(g, edge, :shadowpartgeom, full_shadow)
+
         full_shadow = rebuild_lines(full_shadow, MIN_DIST)
         reinterp_crs!(full_shadow, local_crs)
         set_prop!(g, edge, :shadowgeom, full_shadow)
@@ -318,10 +330,6 @@ function add_shadow_intervals_rtree!(g, shadows)
         set_prop!(g, edge, :shadowed_length, length_in_shadow)
 
 
-        # this could be factored out... (but is set only once, at the cost of a has_prop call...)
-        if !has_prop(g, edge, :full_length)
-            set_prop!(g, edge, :full_length, ArchGDAL.geomlength(get_prop(g, edge, :edgegeom)::ArchGDAL.IGeometry{ArchGDAL.wkbLineString}))
-        end
 
         diff = get_prop(g, edge, :shadowed_part_length)::Float64 - length_in_shadow
         if diff < -0.1

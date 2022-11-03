@@ -50,6 +50,9 @@ function project_graph_edges!(g, trans)
         if has_prop(g, edge, :shadowgeom)
             ArchGDAL.transform!(get_prop(g, edge, :shadowgeom)::EdgeGeomType, trans)
         end
+        if has_prop(g, edge, :shadowpartgeom)
+            ArchGDAL.transform!(get_prop(g, edge, :shadowpartgeom)::EdgeGeomType, trans)
+        end
     end
 end
 
