@@ -5,6 +5,7 @@ function offset_line(line, distance)
 	x = [i[1] for i in points]
 	y = [i[2] for i in points]
 	# TODO: figure out how to handle endpoints
+    # TODO: figure out if we need to detect intersections and trim of resulting loops...
 	deltas = [norm([y[2]-y[1], -(x[2]-x[1])])]
 	# for everything not endpoints, calculate offset direction of edge
 	for i in 2:length(points)
