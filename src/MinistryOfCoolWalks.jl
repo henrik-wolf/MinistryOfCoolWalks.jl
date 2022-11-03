@@ -22,7 +22,13 @@ module MinistryOfCoolWalks
         "trunk" => 3,
         "trunk_link" => 3,
         "service" => 1,
-        "living_street" => 1
+        "living_street" => 1,
+        "primary" => 2,
+        "secondary" => 2,
+        "tertiary_link" => 1,
+        "primary_link" => 2,
+        "secondary_link" => 2,
+        "road" => 1
     )
     #=DEFAULT_LANES = Dict(
         "motorway" => 3,
@@ -41,7 +47,13 @@ module MinistryOfCoolWalks
         "trunk",
         "trunk_link",
         "service",
-        "living_street"]
+        "living_street",
+        "primary",
+        "secondary",
+        "tertiary_link",
+        "primary_link",
+        "secondary_link",
+        "road"]
         
     const HIGHWAYS_NOT_OFFSET = [
         "unclassified",
