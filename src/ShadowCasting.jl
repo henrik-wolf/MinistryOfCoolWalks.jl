@@ -1,3 +1,15 @@
+shadow_cleanup(shadow) = shadow_cleanup(geomtrait(shadow), shadow)
+shadow_cleanup(::PolygonTrait, shadow) = shadow
+function shadow_cleanup(::GeometryCollectionTrait, shadow)
+    polygons = filter(x->geomtrait(x) isa PolygonTrait, collect(getgeom(shadow)))
+    multi_polygons = filter(x->geomtrait(x) isa MultiPolygonTrait, collect(getgeom(shadow)))
+    if length(polygons) == 1 && length(multi_polygons) == 0
+        return first(polygons)
+    else
+        throw(ArgumentError("the resulting geometry $shadow has more than one polygon $polygons or at least one multipoligon $multi_polygons"))
+    end
+end
+
 function cast_shadow(buildings_df, height_key, sun_direction::AbstractArray)
     @assert sun_direction[3] > 0 "the sun is below or on the horizon. Everything is in shadow."
     #@info "this function assumes you geometry beeing in a suitable crs to do projections"
@@ -48,7 +60,7 @@ function cast_shadow(buildings_df, height_key, sun_direction::AbstractArray)
         end
         
 
-        full_shadow = ArchGDAL.union(outer_shadow, holeless_lower_poly)        
+        full_shadow = shadow_cleanup(ArchGDAL.union(outer_shadow, holeless_lower_poly))
         push!(shadow_df, [full_shadow, row.id])
     end
 
@@ -245,6 +257,7 @@ function add_shadow_intervals!(g, shadows; method=:reconstruct)
     project_back!(g)
     return df
 end
+
 
 
 function add_shadow_intervals_rtree!(g, shadows)
