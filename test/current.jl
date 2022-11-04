@@ -1,5 +1,5 @@
 using MinistryOfCoolWalks
-using ArchGDAL
+using ArchGDAL|
 using ShadowGraphs
 using CompositeBuildings
 using TreeLoaders
@@ -11,14 +11,14 @@ using DataFrames
 using SpatialIndexing
 using JET
 using BenchmarkTools
-sefsefse
 
 datapath = joinpath(homedir(), "Desktop/Masterarbeit/data/Nottingham/")
 buildings = load_british_shapefiles(joinpath(datapath, "Nottingham.shp"); bbox=(minlat=52.89, minlon=-1.2, maxlat=52.92, maxlon=-1.165))
 shadows = cast_shadow(buildings, :height_mean, [1.0, -0.5, 0.4])
 trees = load_nottingham_trees(joinpath(datapath, "trees/trees_full_rest.csv"); bbox=(minlat=52.89, minlon=-1.2, maxlat=52.92, maxlon=-1.165))
 
-g_osm_bike, g_bike = shadow_graph_from_file(joinpath(datapath, "clifton/test_clifton_bike.json"); network_type=:bike)
+g_osm_bike_small, g_bike_small = shadow_graph_from_file(joinpath(datapath, "clifton/test_clifton_bike.json"); network_type=:bike)
+g_osm_bike, g_bike = shadow_graph_from_file(joinpath(datapath, "nottingham_bike_full.json"); network_type=:bike)
 correct_centerlines!(g_bike, buildings)
 add_shadow_intervals_rtree!(g_bike, shadows)
 export_graph_to_csv("test", g_bike; remove_internal_data=false)
@@ -98,7 +98,7 @@ begin
     end
     plot!()
 end
-g_plot = g_bike
+g_plot = g_bike_small
 begin
     fig = draw(shadows.geometry;
         figure_params=Dict(:location=>(52.904, -1.18), :zoom_start=>14),
@@ -288,3 +288,49 @@ used_values["highway"]
 
 
 MinistryOfCoolWalks.get_rotational_direction(g_bike)
+
+
+osm_broken, g_broken_lolipop = shadow_graph_from_download(:bbox; network_type=:bike, minlat=52.9436100, minlon=-1.1888500, maxlat=52.9464900, maxlon=-1.1830900)
+set_prop!(g_broken_lolipop, :offset_dir, -1)
+correct_centerlines!(g_broken_lolipop, buildings)
+
+ngeom(get_prop(g_broken_lolipop, 25, 46, :edgegeom))
+
+nodes = [3, 46, 77, 21, 25, 41, 51, 55]
+nodes_second = [46, 25, 41]
+begin
+    n = nodes#_second
+    plot()
+    for i in n
+        #plot!(get_prop(g_broken_lolipop, i, :pointgeom))
+        for j in n
+            if has_edge(g_broken_lolipop, i, j) && has_prop(g_broken_lolipop, i, j, :edgegeom)
+                line = get_prop(g_broken_lolipop, i, j, :edgegeom)
+                plot!(line, c=101i+13j, lw=10, alpha=0.5, label="$i=>$j")
+                plot!(ArchGDAL.pointalongline(line, ArchGDAL.geomlength(line)), c=101i+13j)
+            end
+        end
+    end
+    plot!(ratio=1, size=(1000, 1000))
+end
+
+has_edge
+
+begin
+    fig = draw(g_broken_lolipop, :vertices;
+        figure_params=Dict(:location=>(52.904, -1.18), :zoom_start=>14),
+        fill_opacity=0.5,
+        color=:black)
+    draw!(fig, g_broken_lolipop, :edgegeom)
+    draw!(fig, g_broken_lolipop, :shadowgeom)
+    draw!(fig, g_broken_lolipop, :edges)
+end
+
+ShadowGraphs.is_lolipop_node(g_osm_bike, 1595531385)
+
+way_id = g_osm_bike.node_to_way[6877149067]
+way = osm_broken.ways[way_id]
+nodes = way.nodes
+
+
+ShadowGraphs.is_lolipop_node(g_osm_bike, 323231177)
