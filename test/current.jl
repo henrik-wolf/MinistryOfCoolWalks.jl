@@ -18,8 +18,8 @@ shadows = cast_shadow(buildings, :height_mean, [1.0, -0.5, 0.4])
 trees = load_nottingham_trees(joinpath(datapath, "trees/trees_full_rest.csv"); bbox=(minlat=52.89, minlon=-1.2, maxlat=52.92, maxlon=-1.165))
 
 g_osm_bike_small, g_bike_small = shadow_graph_from_file(joinpath(datapath, "clifton/test_clifton_bike.json"); network_type=:bike)
-g_osm_bike, g_bike = shadow_graph_from_file(joinpath(datapath, "nottingham_bike_full.json"); network_type=:bike)
-correct_centerlines!(g_bike, buildings)
+#g_osm_bike, g_bike = shadow_graph_from_file(joinpath(datapath, "nottingham_bike_full.json"); network_type=:bike)
+correct_centerlines!(g_bike_small, buildings)
 add_shadow_intervals_rtree!(g_bike, shadows)
 export_graph_to_csv("test", g_bike; remove_internal_data=false)
 
@@ -27,12 +27,12 @@ export_graph_to_csv("test", g_bike; remove_internal_data=false)
 g_osm_drive, g_drive = shadow_graph_from_file(joinpath(datapath, "test_clifton.json"))
 
 using Plots
-path = get_prop(g_bike, 1676, 1677, :edgegeom)
+path = get_prop(g_bike_small, 1676, 1677, :edgegeom)
 shadow = get_prop(g_bike, 1676, 1677,:shadowgeom)
 shadow_parts = get_prop(g_bike, 1676, 1677,:shadowpartgeom)
 
 
-plot(path)
+plot!(path)
 for line in getgeom(shadow)
 plot!(line, lw=13, alpha=0.4)
 end
