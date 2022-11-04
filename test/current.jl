@@ -31,7 +31,7 @@ path = get_prop(g_bike, 1676, 1677, :edgegeom)
 shadow = get_prop(g_bike, 1676, 1677,:shadowgeom)
 shadow_parts = get_prop(g_bike, 1676, 1677,:shadowpartgeom)
 
-ArchGDAL.isvalid(shadow)
+
 plot(path)
 for line in getgeom(shadow)
 plot!(line, lw=13, alpha=0.4)

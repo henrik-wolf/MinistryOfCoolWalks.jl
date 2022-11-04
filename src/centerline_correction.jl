@@ -13,13 +13,6 @@ function offset_line(line, distance)
 		push!(deltas, direction)
 	end
 	push!(deltas, norm([y[end]-y[end-1], -(x[end]-x[end-1])]))
-
-    # check if endpoints of line are very close together (form a ring.) if so, make sure endpoints end up at the same location
-    distance_start_end = sqrt((x[1] - x[end])^2 + (y[1]-y[end])^2)
-    if distance_start_end < 1e-4
-        deltas = [[deltas[end]]; deltas[2:end-1]; [deltas[1]]]
-    end
-
 	node_directions = norm.(deltas[1:end-1] .+ deltas[2:end])
     scalar_products = [node_dir' * edge_dir for (node_dir, edge_dir) in zip(node_directions, deltas)]
     node_directions ./= scalar_products
