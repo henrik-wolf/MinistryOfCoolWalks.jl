@@ -1,5 +1,3 @@
-norm(vec) = vec / sqrt(sum(vec.^2))
-
 function offset_line(line, distance)
 	points = [collect(getcoord(p)) for p in getgeom(line)]
 	x = [i[1] for i in points]
