@@ -72,3 +72,5 @@ function reinterp_crs!(geom, crs)
         ArchGDAL.transform!(geom, trans)
     end
 end
+
+norm(vec) = vec / sqrt(sum(vec.^2))
