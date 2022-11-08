@@ -1,5 +1,5 @@
 using MinistryOfCoolWalks
-using ArchGDAL|
+using ArchGDAL
 using ShadowGraphs
 using CompositeBuildings
 using TreeLoaders
@@ -17,10 +17,45 @@ buildings = load_british_shapefiles(joinpath(datapath, "Nottingham.shp"); bbox=(
 shadows = cast_shadow(buildings, :height_mean, [1.0, -0.5, 0.4])
 trees = load_nottingham_trees(joinpath(datapath, "trees/trees_full_rest.csv"); bbox=(minlat=52.89, minlon=-1.2, maxlat=52.92, maxlon=-1.165))
 
+
+tree_shadows = cast_shadow(trees, tree_param_getter_nottingham, [1.0, -0.5, 0.4])
+
+
+# map only shadows
+begin
+    fig = draw(tree_shadows.geometry;
+        figure_params=dict(:location=>(52.904, -1.18), :zoom_start=>14),
+        fill_opacity=0.5,
+        color="#545454")
+    draw!(fig, shadows.geometry; fill_opacity=0.5, color="#545454")
+    for row in eachrow(trees)
+        tt = "radius: $(row.crown_spread_radius)<br>height: $(row.height_n)<br>common name: $(row.commonname)"
+        draw!(fig, row.pointgeom; radius=row.crown_spread_radius, color="#71b36b", fill=true, stroke=false, fill_opacity=0.8, tooltip=tt)
+    end
+    draw!(fig, buildings.geometry) 
+    write("shadow_map.html", repr("text/html", fig))
+    #draw!(fig, shadows.geometry; fill_opacity=0.5, color=:black)
+end
+
+# map only network
+begin
+    fig = draw(tree_shadows.geometry;
+        figure_params=dict(:location=>(52.904, -1.18), :zoom_start=>14),
+        fill_opacity=0.5,
+        color="#545454")
+    draw!(fig, shadows.geometry; fill_opacity=0.5, color="#545454")
+    for row in eachrow(trees)
+        tt = "radius: $(row.crown_spread_radius)<br>height: $(row.height_n)<br>common name: $(row.commonname)"
+        draw!(fig, row.pointgeom; radius=row.crown_spread_radius, color="#71b36b", fill=true, stroke=false, fill_opacity=0.8, tooltip=tt)
+    end
+    draw!(fig, buildings.geometry) 
+    write("shadow_map.html", repr("text/html", fig))
+    #draw!(fig, shadows.geometry; fill_opacity=0.5, color=:black)
+end
 g_osm_bike_small, g_bike_small = shadow_graph_from_file(joinpath(datapath, "clifton/test_clifton_bike.json"); network_type=:bike)
 #g_osm_bike, g_bike = shadow_graph_from_file(joinpath(datapath, "nottingham_bike_full.json"); network_type=:bike)
 correct_centerlines!(g_bike_small, buildings)
-add_shadow_intervals_rtree!(g_bike, shadows)
+add_shadow_intervals_rtree!(g_bike_small, shadows)
 export_graph_to_csv("test", g_bike; remove_internal_data=false)
 
 
@@ -334,3 +369,12 @@ nodes = way.nodes
 
 
 ShadowGraphs.is_lolipop_node(g_osm_bike, 323231177)
+
+LinRange(0, 2π, 9)[1:end-1]
+
+
+n=8
+angles = LinRange(0, 2π, n+1)
+x_plane = cos.(angles)
+
+x_plane' .* [1,2,3]
