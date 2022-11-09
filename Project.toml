@@ -20,6 +20,7 @@ SpatialIndexing = "d4ead438-fe20-5cc5-a293-4fd39a41b74c"
 TreeLoaders = "f47e3ccc-e4ba-4197-93dd-e1f87b2e9c3f"
 
 [compat]
+GeoDataFrames = "0.3"
 PyCall = "1"
 Graphs = "1"
 MetaGraphs = "0.7"
