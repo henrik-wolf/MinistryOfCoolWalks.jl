@@ -20,6 +20,7 @@ SpatialIndexing = "d4ead438-fe20-5cc5-a293-4fd39a41b74c"
 TreeLoaders = "f47e3ccc-e4ba-4197-93dd-e1f87b2e9c3f"
 
 [compat]
+MetaGraphs = "0.7"
 ProgressMeter = "1"
 SpatialIndexing = "0.1"
 julia = "1.8"
