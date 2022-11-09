@@ -386,7 +386,8 @@ function add_shadow_intervals_rtree!(g, shadows)
 
         set_prop!(g, edge, :shadowpartgeom, full_shadow)
 
-        full_shadow = rebuild_lines(full_shadow, MIN_DIST)
+        full_shadow_previous = get_prop(g, edge, :shadowgeom)
+        full_shadow = rebuild_lines(ArchGDAL.union(full_shadow, full_shadow_previous), MIN_DIST)
         reinterp_crs!(full_shadow, local_crs)
         set_prop!(g, edge, :shadowgeom, full_shadow)
 
