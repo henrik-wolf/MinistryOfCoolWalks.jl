@@ -4,19 +4,68 @@ module MinistryOfCoolWalks
     using GeoInterface
     using GeoDataFrames
     using DataFrames
-    using PyCall
     using ShadowGraphs
     using CompositeBuildings
     using Graphs
     using MetaGraphs
     using ProgressMeter
+    using Folium
+    using SpatialIndexing
 
-    const flm = PyNULL()
     const OSM_ref = Ref{ArchGDAL.ISpatialRef}()
+    const EdgeGeomType = Union{ArchGDAL.IGeometry{ArchGDAL.wkbLineString}, ArchGDAL.IGeometry{ArchGDAL.wkbMultiLineString}}
+    const DEFAULT_LANE_WIDTH = 3.5
+
+    const DEFAULT_LANES_ONEWAY = Dict(
+        "tertiary" => 1,
+        "residential" => 1,
+        "trunk" => 3,
+        "trunk_link" => 3,
+        "service" => 1,
+        "living_street" => 1,
+        "primary" => 2,
+        "secondary" => 2,
+        "tertiary_link" => 1,
+        "primary_link" => 2,
+        "secondary_link" => 2,
+        "road" => 1
+    )
+    #=DEFAULT_LANES = Dict(
+        "motorway" => 3,
+        "trunk" => 3,
+        "primary" => 2,
+        "secondary" => 2,
+        "tertiary" => 1,
+        "unclassified" => 1,
+        "residential" => 1,
+        "other" => 1
+    )=#
+
+    const HIGHWAYS_OFFSET = [
+        "tertiary",
+        "residential",
+        "trunk",
+        "trunk_link",
+        "service",
+        "living_street",
+        "primary",
+        "secondary",
+        "tertiary_link",
+        "primary_link",
+        "secondary_link",
+        "road"]
+        
+    const HIGHWAYS_NOT_OFFSET = [
+        "unclassified",
+        "path",
+        "bridleway",
+        "track",
+        "pedestrian",
+        "cycleway"
+
+    ]
     function __init__()
-        # weird stuff with importing at runtime. Might switch to pyimport_conda("folium", "folium")
         # for ease of setup.
-        copy!(flm, pyimport("folium"))
         OSM_ref[] = ArchGDAL.importEPSG(4326; order=:trad)
         nothing
     end
@@ -26,19 +75,16 @@ module MinistryOfCoolWalks
     export sunposition
     include("SunPosition.jl")
 
-    export cast_shadow
+    export cast_shadow,
+        add_shadow_intervals!,
+        add_shadow_intervals_rtree!,
+        add_shadow_intervals_linear!,
+        rebuild_lines
     include("ShadowCasting.jl")
 
-    export FoliumMap,
-        circles, circles!,
-        circleMarkers, circleMarkers!,
-        polygons, polygons!,
-        polylines, polylines!,
-        fit_bounds!,
-        graph_node_circles, graph_node_circles!,
-        graph_node_circleMarkers, graph_node_circleMarkers!,
-        graph_edges, graph_edges!,
-        graph_edge_geometries, graph_edge_geometries!
-    include("plotting.jl")
+    export build_rtree
+    include("rtree_building.jl")
 
+    export correct_centerlines!
+    include("centerline_correction.jl")
 end
