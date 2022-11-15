@@ -1,4 +1,6 @@
 module MinistryOfCoolWalks
+    using CoolWalksUtils
+    import CoolWalksUtils: project_local!, project_back!
     using Dates
     using ArchGDAL
     using GeoInterface
@@ -12,7 +14,6 @@ module MinistryOfCoolWalks
     using Folium
     using SpatialIndexing
 
-    const OSM_ref = Ref{ArchGDAL.ISpatialRef}()
     const EdgeGeomType = Union{ArchGDAL.IGeometry{ArchGDAL.wkbLineString}, ArchGDAL.IGeometry{ArchGDAL.wkbMultiLineString}}
     const DEFAULT_LANE_WIDTH = 3.5
 
@@ -64,16 +65,10 @@ module MinistryOfCoolWalks
         "cycleway"
 
     ]
-    function __init__()
-        # for ease of setup.
-        OSM_ref[] = ArchGDAL.importEPSG(4326; order=:trad)
-        nothing
-    end
 
     include("utils.jl")
 
     export sunposition
-    include("SunPosition.jl")
 
     export cast_shadow,
         add_shadow_intervals!,
