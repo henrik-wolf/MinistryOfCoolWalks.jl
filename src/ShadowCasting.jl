@@ -10,23 +10,13 @@ function shadow_cleanup(::GeometryCollectionTrait, shadow)
     end
 end
 
-# stolen from LinearAlgebra
-function cross(a, b)
-    if !(length(a) == length(b) == 3)
-        throw(DimensionMismatch("cross product is only defined for vectors of length 3"))
-    end
-    a1, a2, a3 = a
-    b1, b2, b3 = b
-    [a2*b3-a3*b2, a3*b1-a1*b3, a1*b2-a2*b1]
-end
-
 function cast_shadow(tree_df, param_getter::Function, sun_direction::AbstractArray)
     @assert sun_direction[3] > 0 "the sun is below or on the horizon. Everything is in shadow."
     project_local!(tree_df.pointgeom, metadata(tree_df, "center_lon"), metadata(tree_df, "center_lat"))
 
     # construct right hand system with sun direction:
-    v1 = norm(cross(sun_direction, [1,0,0]))
-    v2 = norm(cross(v1, sun_direction))
+    v1 = unit(cross(sun_direction, [1,0,0]))
+    v2 = unit(cross(v1, sun_direction))
 
     # create projection of silhouette centered on (0,0) at height 0
     n = 8

@@ -4,13 +4,13 @@ function offset_line(line, distance)
 	y = [i[2] for i in points]
 	# TODO: figure out how to handle endpoints
     # TODO: figure out if we need to detect intersections and trim of resulting loops...
-	deltas = [norm([y[2]-y[1], -(x[2]-x[1])])]
+	deltas = [unit([y[2]-y[1], -(x[2]-x[1])])]
 	# for everything not endpoints, calculate offset direction of edge
 	for i in 2:length(points)
-		direction = norm([y[i]-y[i-1], -(x[i]-x[i-1])])
+		direction = unit([y[i]-y[i-1], -(x[i]-x[i-1])])
 		push!(deltas, direction)
 	end
-	push!(deltas, norm([y[end]-y[end-1], -(x[end]-x[end-1])]))
+	push!(deltas, unit([y[end]-y[end-1], -(x[end]-x[end-1])]))
 
     # check if endpoints of line are very close together (form a ring.) if so, make sure endpoints end up at the same location
     distance_start_end = sqrt((x[1] - x[end])^2 + (y[1]-y[end])^2)
@@ -18,7 +18,7 @@ function offset_line(line, distance)
         deltas = [[deltas[end]]; deltas[2:end-1]; [deltas[1]]]
     end
 
-	node_directions = norm.(deltas[1:end-1] .+ deltas[2:end])
+	node_directions = unit.(deltas[1:end-1] .+ deltas[2:end])
     scalar_products = [node_dir' * edge_dir for (node_dir, edge_dir) in zip(node_directions, deltas)]
     node_directions ./= scalar_products
 	

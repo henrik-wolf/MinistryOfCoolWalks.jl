@@ -44,5 +44,3 @@ function rect_from_geom(geom)
     ur = (x[2], y[2])
     return SpatialIndexing.Rect(ll, ur)
 end
-
-norm(vec) = vec / sqrt(sum(vec.^2))
