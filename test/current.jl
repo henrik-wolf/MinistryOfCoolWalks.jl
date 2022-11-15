@@ -13,9 +13,9 @@ using JET
 using BenchmarkTools
 
 datapath = joinpath(homedir(), "Desktop/Masterarbeit/data/Nottingham/")
-buildings = load_british_shapefiles(joinpath(datapath, "Nottingham.shp"); bbox=(minlat=52.89, minlon=-1.2, maxlat=52.92, maxlon=-1.165))
+buildings = load_british_shapefiles(joinpath(datapath, "Nottingham.shp"); bbox=(minlon=-1.2, minlat=52.89, maxlon=-1.165, maxlat=52.92))
 shadows = cast_shadow(buildings, :height_mean, [1.0, -0.5, 0.4])
-trees = load_nottingham_trees(joinpath(datapath, "trees/trees_full_rest.csv"); bbox=(minlat=52.89, minlon=-1.2, maxlat=52.92, maxlon=-1.165))
+trees = load_nottingham_trees(joinpath(datapath, "trees/trees_full_rest.csv"); bbox=(minlon=-1.2, minlat=52.89, maxlon=-1.165, maxlat=52.92))
 
 
 tree_shadows = cast_shadow(trees, tree_param_getter_nottingham, [1.0, -0.5, 0.4])
