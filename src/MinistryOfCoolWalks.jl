@@ -68,7 +68,7 @@ module MinistryOfCoolWalks
 
     include("utils.jl")
 
-    export sunposition
+    export sunposition  # imported from CoolWalksUtils
 
     export cast_shadow,
         add_shadow_intervals!,

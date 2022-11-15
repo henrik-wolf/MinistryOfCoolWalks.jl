@@ -179,9 +179,6 @@ tree
 
 MinistryOfCoolWalks.get_bbox_min_max(p1)
 
-bounding_box
-
-bbox
 
 e = GeoInterface.extent(br)
 values(e)
