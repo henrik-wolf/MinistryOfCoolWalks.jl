@@ -70,10 +70,8 @@ module MinistryOfCoolWalks
 
     export sunposition  # imported from CoolWalksUtils
 
-    export cast_shadow,
-        add_shadow_intervals!,
-        rebuild_lines
-    include("ShadowCasting.jl")
+    export add_shadow_intervals!,
+    include("ShadowIntersections.jl")
 
     export build_rtree
     include("rtree_building.jl")
