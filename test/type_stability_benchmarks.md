@@ -10,11 +10,11 @@ datapath = joinpath(homedir(), "Desktop/Masterarbeit/data/Nottingham/")
 buildings = load_british_shapefiles(joinpath(datapath, "Nottingham.shp"); bbox=(minlat=52.89, minlon=-1.2, maxlat=52.92, maxlon=-1.165))
 shadows = cast_shadow(buildings, :height_mean, [1.0, -0.5, 0.4])
 _, g_base = shadow_graph_from_file(joinpath(datapath, "test_nottingham.json"))
-@benchmark add_shadow_intervals_rtree!(g, $shadows) seconds=40 setup=(g = deepcopy($g_base))
+@benchmark add_shadow_intervals!(g, $shadows) seconds=40 setup=(g = deepcopy($g_base))
 ```
 
 
-## benchmark of add_shadow_intervals_rtree! before any optimisation (surprisingly faster than what I remember)
+## benchmark of add_shadow_intervals! before any optimisation (surprisingly faster than what I remember)
 ```
 BenchmarkTools.Trial: 22 samples with 1 evaluation.
  Range (min … max):  1.320 s …    2.127 s  ┊ GC (min … max): 3.92% … 15.44%

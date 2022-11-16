@@ -55,7 +55,7 @@ end
 g_osm_bike_small, g_bike_small = shadow_graph_from_file(joinpath(datapath, "clifton/test_clifton_bike.json"); network_type=:bike)
 #g_osm_bike, g_bike = shadow_graph_from_file(joinpath(datapath, "nottingham_bike_full.json"); network_type=:bike)
 correct_centerlines!(g_bike_small, buildings)
-add_shadow_intervals_rtree!(g_bike_small, shadows)
+add_shadow_intervals!(g_bike_small, shadows)
 export_graph_to_csv("test", g_bike; remove_internal_data=false)
 
 
@@ -94,7 +94,7 @@ begin
     _, g_rtree = shadow_graph_from_file(joinpath(datapath, "clifton/test_clifton_bike.json"); network_type=:bike)
     correct_centerlines!(g_rtree, buildings)
 end
-lines_rtree = add_shadow_intervals_rtree!(g_rtree, shadows)
+lines_rtree = add_shadow_intervals!(g_rtree, shadows)
 
 lines_normal
 lines_rtree
@@ -104,13 +104,13 @@ scatter(lines_normal.sl - lines_rtree.sl)
 
 get_prop(g_base, :crs)
 
-@benchmark add_shadow_intervals_rtree!(g, $shadows) seconds=30 setup=(g = deepcopy($g_base))
+@benchmark add_shadow_intervals!(g, $shadows) seconds=30 setup=(g = deepcopy($g_base))
 @benchmark add_shadow_intervals!(g, $shadows) seconds=120 setup=(g = deepcopy($g_base))
 
-print(@report_opt add_shadow_intervals_rtree!(g_base, shadows))
-@code_warntype add_shadow_intervals_rtree!(g_base, shadows)
-@time add_shadow_intervals_rtree!(g, shadows);
-@profview add_shadow_intervals_rtree!(g, shadows)
+print(@report_opt add_shadow_intervals!(g_base, shadows))
+@code_warntype add_shadow_intervals!(g_base, shadows)
+@time add_shadow_intervals!(g, shadows);
+@profview add_shadow_intervals!(g, shadows)
 @report_opt DataFrame()
 
 function test()
@@ -230,7 +230,7 @@ tree84.root.mbr.low
 tree84.root.mbr.high
 
 _, g_rtree = shadow_graph_from_file(joinpath(datapath, "test_nottingham.json"))
-lines_rtree = add_shadow_intervals_rtree!(g_rtree, shadows);
+lines_rtree = add_shadow_intervals!(g_rtree, shadows);
 
 ext = GeoInterface.extent(shadows2.geometry[1])
 collect(zip(values(ext)...))

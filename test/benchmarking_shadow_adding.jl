@@ -10,10 +10,10 @@ buildings = load_british_shapefiles(joinpath(datapath, "Nottingham.shp"); bbox=(
 shadows = cast_shadow(buildings, :height_mean, [1.0, -0.5, 0.4])
 
 #iterations = [10, 10, 2]
-#operations = [add_shadow_intervals!, add_shadow_intervals_rtree!, add_shadow_intervals_linear!]
+#operations = [add_shadow_intervals!]
 
 iterations = [30]
-operations = [add_shadow_intervals_rtree!]
+operations = [add_shadow_intervals!]
 
 options = [(iter, operation, flag) 
     for (iter, operation) in  zip(iterations, operations)

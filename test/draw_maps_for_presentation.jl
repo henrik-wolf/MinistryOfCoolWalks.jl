@@ -36,8 +36,8 @@ begin
 end
     
 # add shaded lines to graph
-add_shadow_intervals_rtree!(g_bike_clifton, building_shadows)
-add_shadow_intervals_rtree!(g_bike_clifton, tree_shadows)
+add_shadow_intervals!(g_bike_clifton, building_shadows)
+add_shadow_intervals!(g_bike_clifton, tree_shadows)
 
 # map only graph
 begin
