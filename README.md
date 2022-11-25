@@ -1,5 +1,10 @@
 # MinistryOfCoolWalks.jl
 
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://SuperGrobi.github.io/MinistryOfCoolWalks.jl/stable/)
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://SuperGrobi.github.io/MinistryOfCoolWalks.jl/dev/)
+[![Build Status](https://github.com/SuperGrobi/MinistryOfCoolWalks.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/SuperGrobi/MinistryOfCoolWalks.jl/actions/workflows/CI.yml?query=branch%3Amain)
+[![Code Style: Blue](https://img.shields.io/badge/code%20style-blue-4495d1.svg)](https://github.com/invenia/BlueStyle)
+
 this is the heart of the whole operation. Here I will put all the code which deals with networks and buildings (and later trees as well.). Currently we have a few functions related to calculating the suns position at different times and a (rudimentary) function to calculate the shadows of buildings passed in as a dataframe from `CompositeBuildings.jl`.
 
 In the next days I will probably add plotting support for networks, buildings, shadows and so on.
