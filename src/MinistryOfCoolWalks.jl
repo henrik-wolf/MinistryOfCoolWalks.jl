@@ -62,7 +62,7 @@ module MinistryOfCoolWalks
 
     ]
 
-    include("utils.jl")
+    include("Utils.jl")
 
     export sunposition  # imported from CoolWalksUtils
 
@@ -70,8 +70,8 @@ module MinistryOfCoolWalks
     include("ShadowIntersections.jl")
 
     export build_rtree
-    include("rtree_building.jl")
+    include("RTreeBuilding.jl")
 
     export correct_centerlines!
-    include("centerline_correction.jl")
+    include("CenterlineCorrection.jl")
 end
