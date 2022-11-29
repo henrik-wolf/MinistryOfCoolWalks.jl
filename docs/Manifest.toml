@@ -534,7 +534,7 @@ uuid = "626554b9-1ddb-594c-aa3c-2596fe9399a5"
 version = "0.7.1"
 
 [[deps.MinistryOfCoolWalks]]
-deps = ["ArchGDAL", "CompositeBuildings", "CoolWalksUtils", "DataFrames", "Dates", "Folium", "GeoDataFrames", "GeoInterface", "Graphs", "MetaGraphs", "ProgressMeter", "PyCall", "ShadowGraphs", "SpatialIndexing", "TreeLoaders"]
+deps = ["ArchGDAL", "CompositeBuildings", "CoolWalksUtils", "DataFrames", "GeoInterface", "Graphs", "MetaGraphs", "ProgressMeter", "PyCall", "ShadowGraphs", "SpatialIndexing", "TreeLoaders"]
 path = ".."
 uuid = "8af523f7-f13f-4fcd-8beb-cc917078799e"
 version = "0.1.0"
