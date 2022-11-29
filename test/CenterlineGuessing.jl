@@ -1,6 +1,3 @@
-using Test
-using MinistryOfCoolWalks
-
 @testset "centerline guessing" begin
     tags = Dict(
         "highway" => 0,

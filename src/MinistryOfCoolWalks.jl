@@ -10,9 +10,6 @@ module MinistryOfCoolWalks
     using ProgressMeter
     using SpatialIndexing
 
-    const EdgeGeomType = Union{ArchGDAL.IGeometry{ArchGDAL.wkbLineString}, ArchGDAL.IGeometry{ArchGDAL.wkbMultiLineString}}
-    const DEFAULT_LANE_WIDTH = 3.5
-
     const DEFAULT_LANES_ONEWAY = Dict(
         "tertiary" => 1,
         "residential" => 1,
@@ -62,12 +59,10 @@ module MinistryOfCoolWalks
 
     ]
 
-    include("Utils.jl")
-
     export sunposition  # imported from CoolWalksUtils
 
     export add_shadow_intervals!
-    include("ShadowIntersections.jl")
+    include("ShadowIntersection.jl")
 
     export build_rtree
     include("RTreeBuilding.jl")

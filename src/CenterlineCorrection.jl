@@ -31,13 +31,13 @@ function offset_line(line, distance)
 end
 
 #TODO: make this more clevererererer
-function guess_offset_distance(g, edge::Edge)
+function guess_offset_distance(g, edge::Edge, assumed_lane_width=3.5)
     edge_tags = get_prop(g, edge, :tags)
     direction = get_prop(g, edge, :parsing_direction)
-    return guess_offset_distance(edge_tags, direction)
+    return guess_offset_distance(edge_tags, direction, assumed_lane_width=assumed_lane_width)
 end
 
-function guess_offset_distance(edge_tags, parsing_direction)
+function guess_offset_distance(edge_tags, parsing_direction, assumed_lane_width=3.5)
     waytype = get(edge_tags, "highway", "default")
     if waytype in HIGHWAYS_NOT_OFFSET
         return 0.0
@@ -64,7 +64,7 @@ function guess_offset_distance(edge_tags, parsing_direction)
                     id = get_prop(g, edge, :osm_id)
                     @warn "the number of lanes on way $id in parsing direction is $lanes_parsing_direction. forward: $lanes_forward, backward: $backward, both_ways: $both_ways"
                 end
-                return DEFAULT_LANE_WIDTH * lanes_parsing_direction/2
+                return assumed_lane_width * lanes_parsing_direction/2
             end
 
             # otherwise, get number of lanes
@@ -73,11 +73,11 @@ function guess_offset_distance(edge_tags, parsing_direction)
                     id = get_prop(g, edge, :osm_id)
                     @warn "the number of lanes on way $id is 0."
                 end
-                return DEFAULT_LANE_WIDTH * lanes/2
+                return assumed_lane_width * lanes/2
             end
 
             #else return default number of lanes times default width for given waytype
-            return DEFAULT_LANE_WIDTH * DEFAULT_LANES_ONEWAY[waytype]/2
+            return assumed_lane_width * DEFAULT_LANES_ONEWAY[waytype]/2
         else
             # reconstruct the fraction at which the center is from forward, backward and bothway lanes
             if !ismissing(lanes_forward) && !ismissing(lanes_backward)
@@ -88,7 +88,7 @@ function guess_offset_distance(edge_tags, parsing_direction)
                 if !ismissing(width)
                     return fraction * width
                 else
-                    return DEFAULT_LANE_WIDTH * fraction * combined_lanes
+                    return assumed_lane_width * fraction * combined_lanes
                 end
             end
 
@@ -96,10 +96,10 @@ function guess_offset_distance(edge_tags, parsing_direction)
                 return width / 2
             end
             if !ismissing(lanes)
-                return DEFAULT_LANE_WIDTH * lanes/2
+                return assumed_lane_width * lanes/2
             end
 
-            return DEFAULT_LANE_WIDTH * DEFAULT_LANES_ONEWAY[waytype]
+            return assumed_lane_width * DEFAULT_LANES_ONEWAY[waytype]
         end
     else
         @info "new waytype encountered: $waytype. You may want to choose wether or not to offset this one. (default is no offset)"
@@ -122,7 +122,7 @@ function check_building_intersection(building_tree, offset_linestring)
         return intersecting_geom
 end
 
-function correct_centerlines!(g, buildings)
+function correct_centerlines!(g, buildings, assumed_lane_width=3.5)
     # project all stuff into local system
     center_lon = metadata(buildings, "center_lon")::Float64
     center_lat = metadata(buildings, "center_lat")::Float64
@@ -142,7 +142,7 @@ function correct_centerlines!(g, buildings)
 
         # the direction of the geometry of each edge should always point in the same direction as the edge (I believe I parse it that way)
         
-        offset_dist = offset_dir * guess_offset_distance(g, edge)
+        offset_dist = offset_dir * guess_offset_distance(g, edge, assumed_lane_width=assumed_lane_width)
 
         if abs(offset_dist) > 0
             offset_linestring = offset_line(linestring, offset_dist)
