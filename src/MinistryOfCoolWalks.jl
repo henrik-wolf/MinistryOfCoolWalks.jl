@@ -1,17 +1,13 @@
 module MinistryOfCoolWalks
     using CoolWalksUtils
-    import CoolWalksUtils: project_local!, project_back!
-    using Dates
     using ArchGDAL
     using GeoInterface
-    using GeoDataFrames
     using DataFrames
     using ShadowGraphs
     using CompositeBuildings
     using Graphs
     using MetaGraphs
     using ProgressMeter
-    using Folium
     using SpatialIndexing
 
     const EdgeGeomType = Union{ArchGDAL.IGeometry{ArchGDAL.wkbLineString}, ArchGDAL.IGeometry{ArchGDAL.wkbMultiLineString}}
@@ -70,7 +66,7 @@ module MinistryOfCoolWalks
 
     export sunposition  # imported from CoolWalksUtils
 
-    export add_shadow_intervals!,
+    export add_shadow_intervals!
     include("ShadowIntersections.jl")
 
     export build_rtree
