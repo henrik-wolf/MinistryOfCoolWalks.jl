@@ -1,3 +1,17 @@
+"""
+
+    rebuild_lines(line::ArchGDAL.IGeometry{ArchGDAL.wkbLineString}, min_dist)
+
+calculates the union of lines in a (multi) linestring, merging lines which are closer than `min_dist` to one another.
+This particular function just returns `line`, as a single line allready is the union
+
+    rebuild_lines(lines::ArchGDAL.IGeometry{ArchGDAL.wkbMultiLineString}, min_dist)::EdgeGeomType
+    rebuild_lines(lines, min_dist)::EdgeGeomType
+
+We calculate the adjacency matrix of all lines, build a network with edges where the distance between edges `< min_dist`,
+calculate a dfs tree for each connected component and recursively combine the linestrings at the leafs with the linestrings
+one level up.
+"""
 rebuild_lines(line::ArchGDAL.IGeometry{ArchGDAL.wkbLineString}, min_dist) = line
 rebuild_lines(lines::ArchGDAL.IGeometry{ArchGDAL.wkbMultiLineString}, min_dist)::EdgeGeomType = rebuild_lines(getgeom(lines), min_dist)
 
@@ -42,6 +56,14 @@ function rebuild_lines(lines, min_dist)::EdgeGeomType
     end
 end
 
+"""
+
+    combine_along_tree(tree, start_node, lines, min_dist)
+
+recursively combines the `lines` at leafs in `tree` with the nodes one order up, 
+starting (as in, the recursion starts here. This node gets combined last) at the root `start_node`.
+The min_dist is needed to figure out how the lines should be combined. (This dependency could maybe be removed...)
+"""
 function combine_along_tree(tree, start_node, lines, min_dist)
     mapfoldl(start->combine_along_tree(tree, start, lines, min_dist),
             (a,b)->combine_lines(a,b, min_dist), 
@@ -49,6 +71,15 @@ function combine_along_tree(tree, start_node, lines, min_dist)
             init=lines[start_node])
 end
 
+"""
+
+    combine_lines(a, b, min_dist)
+
+combines two lines a and b at the ends where they are closer than `min_dist` apart.
+
+If `a ⊂ b`, returns `b`, if `b ⊂ a` returns `a`. Otherwise, returns all nodes of `a`, concatenated with all nodes of `b`,
+which are further away from `a` than `min_dist`.
+"""
 function combine_lines(a, b, min_dist)
     a_points2b = [ArchGDAL.distance(p, b) for p in getgeom(a)]
     a2b_points = [ArchGDAL.distance(a, p) for p in getgeom(b)]
@@ -81,6 +112,15 @@ function combine_lines(a, b, min_dist)
     end
 end
 
+"""
+
+    get_length_by_buffering(geom, buffer, points, edge)
+
+approximates the "non overlapping" length of overlapping linestrings by buffering `geom` with a buffer of size `buffer` and
+points `points`, specifying how many points should be used to approximate bends of 90 degrees. After buffering, we calculate the area
+and divide by the twice the buffer width (buffer is radius), after subtracting the area of the endcaps.
+(This function is currently not in use.)
+"""
 function get_length_by_buffering(geom, buffer, points, edge)
     surface = ArchGDAL.buffer(geom, buffer, points)
     if buffer > 1e-2
@@ -102,6 +142,13 @@ function get_length_by_buffering(geom, buffer, points, edge)
     end
 end
 
+"""
+
+    add_shadow_intervals!(g, shadows)
+
+adds the intersection of the polygons in dataframe `shadows` with metadata `"center_lon"` and `"center_lat"` and the geometry in
+the edgeprop `:edgegeom` of graph `g` to `g`.
+"""
 function add_shadow_intervals!(g, shadows)
     MIN_DIST = 1e-4  # TODO: find out what a reasonable value would be for this.
 

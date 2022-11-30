@@ -10,6 +10,13 @@ module MinistryOfCoolWalks
     using ProgressMeter
     using SpatialIndexing
 
+
+    """
+
+        DEFAULT_LANES_ONEWAY 
+
+    default number of lanes in one direction of the street, by `highway` type. Used when there is no data available in the `tags`.
+    """
     const DEFAULT_LANES_ONEWAY = Dict(
         "tertiary" => 1,
         "residential" => 1,
@@ -35,6 +42,13 @@ module MinistryOfCoolWalks
         "other" => 1
     )=#
 
+
+    """
+    
+        HIGHWAYS_OFFSET
+
+    list of `highway`s, which should be offset to the edge of the street.
+    """
     const HIGHWAYS_OFFSET = [
         "tertiary",
         "residential",
@@ -48,7 +62,13 @@ module MinistryOfCoolWalks
         "primary_link",
         "secondary_link",
         "road"]
-        
+    
+    """
+    
+        HIGHWAYS_NOT_OFFSET
+
+    list of `highway`s, which should not be offset, usually because they can allready considered the center of a bikepath/sidewalk/footpath...
+    """
     const HIGHWAYS_NOT_OFFSET = [
         "unclassified",
         "path",

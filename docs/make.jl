@@ -15,7 +15,10 @@ makedocs(;
         assets=String[],
     ),
     pages=[
-        "Home" => "index.md"
+        "Home" => "index.md",
+        "Polygon RTrees" => "RTreeBuilding.md",
+        "Centerline correction" => "CenterlineCorrection.md",
+        "Shadow intersections" => "ShadowIntersection.md"
     ],
 )
 
