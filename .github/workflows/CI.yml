@@ -71,7 +71,12 @@ jobs:
           version: '1'
       - uses: webfactory/ssh-agent@v0.5.4
         with:
-            ssh-private-key: ${{ secrets.COOLWALKSUTILS_PRIVATE_KEY }}
+            ssh-private-key: |
+                  ${{ secrets.COOLWALKSUTILS_PRIVATE_KEY }}
+                  ${{ secrets.COMPOSITEBUILDINGS_PRIVATE_KEY }}
+                  ${{ secrets.SHADOWGRAPHS_PRIVATE_KEY }}
+                  ${{ secrets.TREELOADERS_PRIVATE_KEY }}
+                  ${{ secrets.FOLIUM_PRIVATE_KEY }}
       - name: Clone CoolWalksUtils.jl
         run: git clone https://github.com/SuperGrobi/CoolWalksUtils.jl
       - name: Clone CompositeBuildings.jl
