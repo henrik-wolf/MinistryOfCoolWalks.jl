@@ -54,7 +54,11 @@ jobs:
         run: julia --project -e 'using Pkg; Pkg.add([(; path="./CoolWalksUtils.jl"), (; path="./CompositeBuildings.jl"), (; path="./ShadowGraphs.jl"), (; path="./TreeLoaders.jl"), (; path="./Folium.jl")])'
       - uses: julia-actions/cache@v1
       - uses: julia-actions/julia-buildpkg@v1
+        env:
+          PYTHON: ""
       - uses: julia-actions/julia-runtest@v1
+        env:
+          PYTHON: ""
   docs:
     name: Documentation
     runs-on: ubuntu-latest
@@ -70,17 +74,29 @@ jobs:
             ssh-private-key: ${{ secrets.COOLWALKSUTILS_PRIVATE_KEY }}
       - name: Clone CoolWalksUtils.jl
         run: git clone https://github.com/SuperGrobi/CoolWalksUtils.jl
-      - name: Install CoolWalksUtils repo
-        run: julia --project=docs -e 'using Pkg; Pkg.add(path="./CoolWalksUtils.jl")'
+      - name: Clone CompositeBuildings.jl
+        run: git clone https://github.com/SuperGrobi/CompositeBuildings.jl
+      - name: Clone ShadowGraphs.jl
+        run: git clone https://github.com/SuperGrobi/ShadowGraphs.jl
+      - name: Clone TreeLoaders.jl
+        run: git clone https://github.com/SuperGrobi/TreeLoaders.jl
+      - name: Clone Folium.jl
+        run: git clone https://github.com/SuperGrobi/Folium.jl
+      - name: Install non registered repos
+        run: julia --project=docs -e 'using Pkg; Pkg.add([(; path="./CoolWalksUtils.jl"), (; path="./CompositeBuildings.jl"), (; path="./ShadowGraphs.jl"), (; path="./TreeLoaders.jl"), (; path="./Folium.jl")])'
+ 
       - uses: julia-actions/julia-buildpkg@v1
+        env:
+          PYTHON: ""
         with:
             project: 'docs'
       - uses: julia-actions/julia-docdeploy@v1
         env:
+          PYTHON: ""
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: |
           julia --project=docs -e '
             using Documenter: DocMeta, doctest
-            using CompositeBuildings
-            DocMeta.setdocmeta!(CompositeBuildings, :DocTestSetup, :(using CompositeBuildings); recursive=true)
-            doctest(CompositeBuildings)'
+            using MinistryOfCoolWalks
+            DocMeta.setdocmeta!(MinistryOfCoolWalks, :DocTestSetup, :(using MinistryOfCoolWalks); recursive=true)
+            doctest(MinistryOfCoolWalks)'
