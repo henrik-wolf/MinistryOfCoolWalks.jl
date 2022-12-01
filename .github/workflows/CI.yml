@@ -42,7 +42,7 @@ jobs:
       #- name: Clone CoolWalksUtils.jl
       #  run: git clone https://github.com/SuperGrobi/CoolWalksUtils.jl
       - name: Install non registered repos
-        run: julia --project -e 'using Pkg; Pkg.add((; url="https://github.com/SuperGrobi/CoolWalksUtils.jl"), (; url="https://github.com/SuperGrobi/CompositeBuildings.jl"), (; url="https://github.com/SuperGrobi/ShadowGraphs.jl"), (; url="https://github.com/SuperGrobi/TreeLoaders.jl"))'
+        run: julia --project -e 'using Pkg; Pkg.add([(; url="https://github.com/SuperGrobi/CoolWalksUtils.jl"), (; url="https://github.com/SuperGrobi/CompositeBuildings.jl"), (; url="https://github.com/SuperGrobi/ShadowGraphs.jl"), (; url="https://github.com/SuperGrobi/TreeLoaders.jl")])'
       - uses: julia-actions/cache@v1
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
