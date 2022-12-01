@@ -1,5 +1,4 @@
 using MinistryOfCoolWalks
-using Dates
 using Test
 
 include("CenterlineGuessing.jl")
