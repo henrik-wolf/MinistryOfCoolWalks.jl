@@ -39,10 +39,16 @@ jobs:
                   ${{ secrets.COMPOSITEBUILDINGS_PRIVATE_KEY}}
                   ${{ secrets.SHADOWGRAPHS_PRIVATE_KEY}}
                   ${{ secrets.TREELOADERS_PRIVATE_KEY}}
-      #- name: Clone CoolWalksUtils.jl
-      #  run: git clone https://github.com/SuperGrobi/CoolWalksUtils.jl
+      - name: Clone CoolWalksUtils.jl
+        run: git clone https://github.com/SuperGrobi/CoolWalksUtils.jl
+      - name: Clone CompositeBuildings.jl
+        run: git clone https://github.com/SuperGrobi/CompositeBuildings.jl
+      - name: Clone ShadowGraphs.jl
+        run: git clone https://github.com/SuperGrobi/ShadowGraphs.jl
+      - name: Clone TreeLoaders.jl
+        run: git clone https://github.com/SuperGrobi/TreeLoaders.jl
       - name: Install non registered repos
-        run: julia --project -e 'using Pkg; Pkg.add((; url="https://github.com/SuperGrobi/CoolWalksUtils.jl"), (; url="https://github.com/SuperGrobi/CompositeBuildings.jl"), (; url="https://github.com/SuperGrobi/ShadowGraphs.jl"), (; url="https://github.com/SuperGrobi/TreeLoaders.jl"))'
+        run: julia --project -e 'using Pkg; Pkg.add([(; path="./CoolWalksUtils.jl"), (; path="./CompositeBuildings.jl"), (; path="./ShadowGraphs.jl"), (; path="./TreeLoaders.jl")])'
       - uses: julia-actions/cache@v1
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
