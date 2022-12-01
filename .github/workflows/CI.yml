@@ -34,11 +34,15 @@ jobs:
           arch: ${{ matrix.arch }}
       - uses: webfactory/ssh-agent@v0.5.4
         with:
-            ssh-private-key: ${{ secrets.COOLWALKSUTILS_PRIVATE_KEY }}
-      - name: Clone CoolWalksUtils.jl
-        run: git clone https://github.com/SuperGrobi/CoolWalksUtils.jl
-      - name: Install CoolWalksUtils repo
-        run: julia --project -e 'using Pkg; Pkg.add(path="./CoolWalksUtils.jl")'
+            ssh-private-key: |
+                  ${{ secrets.COOLWALKSUTILS_PRIVATE_KEY }}
+                  ${{ secrets.COMPOSITEBUILDINGS_PRIVATE_KEY}}
+                  ${{ secrets.SHADOWGRAPHS_PRIVATE_KEY}}
+                  ${{ secrets.TREELOADERS_PRIVATE_KEY}}
+      #- name: Clone CoolWalksUtils.jl
+      #  run: git clone https://github.com/SuperGrobi/CoolWalksUtils.jl
+      - name: Install non registered repos
+        run: julia --project -e 'using Pkg; Pkg.add((; url="https://github.com/SuperGrobi/CoolWalksUtils.jl"), (; url="https://github.com/SuperGrobi/CompositeBuildings.jl"), (; url="https://github.com/SuperGrobi/ShadowGraphs.jl"), (; url="https://github.com/SuperGrobi/TreeLoaders.jl"))'
       - uses: julia-actions/cache@v1
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
