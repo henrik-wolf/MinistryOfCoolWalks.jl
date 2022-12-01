@@ -2,5 +2,5 @@ using MinistryOfCoolWalks
 using Test
 
 include("CenterlineGuessing.jl")
-include("TReeBuilding.jl")
-include("ShadowIntersections.jl")
+include("RTreeBuilding.jl")
+include("ShadowIntersection.jl")
