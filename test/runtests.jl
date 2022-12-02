@@ -1,5 +1,6 @@
 using MinistryOfCoolWalks
 using SpatialIndexing
+using CoolWalksUtils
 using Test
 
 include("CenterlineCorrection.jl")
