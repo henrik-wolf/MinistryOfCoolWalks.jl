@@ -167,7 +167,7 @@ We check if the offset line does intersect more buildings than the original line
 a building. If there have new intersections arrisen, we retry the offsetting with `0.9, 0.8, 0.7...` times the guessed offset, while checking and,
 if true breaking, whether the additional intersections vanish.
 
-We also update the locations of the helpernodes, to reflect the offset lines.
+We also update the locations of the helper nodes, to reflect the offset lines, as well as the ":full_length" prop, to reflect the possible change in length.
 """
 function correct_centerlines!(g, buildings, assumed_lane_width=3.5)
     # project all stuff into local system
@@ -234,6 +234,7 @@ function correct_centerlines!(g, buildings, assumed_lane_width=3.5)
                 set_prop!(g, dst(edge), :lat, ArchGDAL.gety(p2, 0))
                 set_prop!(g, dst(edge), :pointgeom, p2)
             end
+            set_prop!(g, edge, :full_length, ArchGDAL.geomlength(offset_linestring))
         end
     end
     

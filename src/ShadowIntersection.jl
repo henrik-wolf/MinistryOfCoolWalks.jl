@@ -169,11 +169,6 @@ function add_shadow_intervals!(g, shadows)
     @showprogress 1 "adding shadows" for edge in edges(g)
         !has_prop(g, edge, :edgegeom) && continue  # skip helpers
 
-        # this could be factored out... (but is set only once, at the cost of a has_prop call...)
-        if !has_prop(g, edge, :full_length)
-            set_prop!(g, edge, :full_length, ArchGDAL.geomlength(get_prop(g, edge, :edgegeom)::ArchGDAL.IGeometry{ArchGDAL.wkbLineString}))
-        end
-
         if !has_prop(g, edge, :shadowed_length)
             set_prop!(g, edge, :shadowed_length, 0.0)
         end
