@@ -1,5 +1,63 @@
 """
 
+    combine_lines(a, b, min_dist)
+
+combines two lines a and b at the ends where they are closer than `min_dist` apart.
+
+If `a ⊂ b`, returns `b`, if `b ⊂ a` returns `a`. Otherwise, returns all nodes of `a`, concatenated with all nodes of `b`,
+which are further away from `a` than `min_dist`.
+"""
+function combine_lines(a, b, min_dist)
+    a_points2b = [ArchGDAL.distance(p, b) for p in getgeom(a)]
+    a2b_points = [ArchGDAL.distance(a, p) for p in getgeom(b)]
+    # this somehow ignores certain edge cases like loops which are cut at just the right point...
+    if all(a_points2b .< min_dist)
+        return b
+    elseif all(a2b_points .< min_dist)
+        return a
+    else
+        # four possible cases:
+        # - overlap is at the end of a and b
+        # - overlap is at the start of a and b
+        # - overlap is at the start of a and end of b
+        # - overlap is at the end of a and start of b
+        a_indices = a_points2b[1] < min_dist ? (ngeom(a):-1:1) : (1:1:ngeom(a))
+
+        b_indices = a2b_points[1] < min_dist ? (1:1:ngeom(b)) : (ngeom(b):-1:1)
+
+        combined = ArchGDAL.createlinestring()::ArchGDAL.IGeometry{ArchGDAL.wkbLineString}
+        for a_index in a_indices
+            a_point = getgeom(a, a_index)::ArchGDAL.IGeometry{ArchGDAL.wkbPoint}
+            ArchGDAL.addpoint!(combined, getcoord(a_point)...)
+        end
+        for b_index in b_indices
+            a2b_points[b_index] < min_dist && continue
+            ArchGDAL.addpoint!(combined, getcoord(getgeom(b, b_index)::ArchGDAL.IGeometry{ArchGDAL.wkbPoint})...)
+        end
+        # we could do some geometry reduction here? (point which are on a line between other points)
+        return combined
+    end
+end
+
+
+"""
+
+    combine_along_tree(tree, start_node, lines, min_dist)
+
+recursively combines the `lines` at leafs in `tree` with the nodes one order up, 
+starting (as in, the recursion starts here. This node gets combined last) at the root `start_node`.
+The min_dist is needed to figure out how the lines should be combined. (This dependency could maybe be removed...)
+"""
+function combine_along_tree(tree, start_node, lines, min_dist)
+    mapfoldl(start->combine_along_tree(tree, start, lines, min_dist),
+            (a,b)->combine_lines(a,b, min_dist), 
+            neighbors(tree, start_node);
+            init=lines[start_node])
+end
+
+
+"""
+
     rebuild_lines(line::ArchGDAL.IGeometry{ArchGDAL.wkbLineString}, min_dist)
 
 calculates the union of lines in a (multi) linestring, merging lines which are closer than `min_dist` to one another.
@@ -56,61 +114,7 @@ function rebuild_lines(lines, min_dist)::EdgeGeomType
     end
 end
 
-"""
 
-    combine_along_tree(tree, start_node, lines, min_dist)
-
-recursively combines the `lines` at leafs in `tree` with the nodes one order up, 
-starting (as in, the recursion starts here. This node gets combined last) at the root `start_node`.
-The min_dist is needed to figure out how the lines should be combined. (This dependency could maybe be removed...)
-"""
-function combine_along_tree(tree, start_node, lines, min_dist)
-    mapfoldl(start->combine_along_tree(tree, start, lines, min_dist),
-            (a,b)->combine_lines(a,b, min_dist), 
-            neighbors(tree, start_node);
-            init=lines[start_node])
-end
-
-"""
-
-    combine_lines(a, b, min_dist)
-
-combines two lines a and b at the ends where they are closer than `min_dist` apart.
-
-If `a ⊂ b`, returns `b`, if `b ⊂ a` returns `a`. Otherwise, returns all nodes of `a`, concatenated with all nodes of `b`,
-which are further away from `a` than `min_dist`.
-"""
-function combine_lines(a, b, min_dist)
-    a_points2b = [ArchGDAL.distance(p, b) for p in getgeom(a)]
-    a2b_points = [ArchGDAL.distance(a, p) for p in getgeom(b)]
-    # this somehow ignores certain edge cases like loops which are cut at just the right point...
-    if all(a_points2b .< min_dist)
-        return b
-    elseif all(a2b_points .< min_dist)
-        return a
-    else
-        # four possible cases:
-        # - overlap is at the end of a and b
-        # - overlap is at the start of a and b
-        # - overlap is at the start of a and end of b
-        # - overlap is at the end of a and start of b
-        a_indices = a_points2b[1] < min_dist ? (ngeom(a):-1:1) : (1:1:ngeom(a))
-
-        b_indices = a2b_points[1] < min_dist ? (1:1:ngeom(b)) : (ngeom(b):-1:1)
-
-        combined = ArchGDAL.createlinestring()::ArchGDAL.IGeometry{ArchGDAL.wkbLineString}
-        for a_index in a_indices
-            a_point = getgeom(a, a_index)::ArchGDAL.IGeometry{ArchGDAL.wkbPoint}
-            ArchGDAL.addpoint!(combined, getcoord(a_point)...)
-        end
-        for b_index in b_indices
-            a2b_points[b_index] < min_dist && continue
-            ArchGDAL.addpoint!(combined, getcoord(getgeom(b, b_index)::ArchGDAL.IGeometry{ArchGDAL.wkbPoint})...)
-        end
-        # we could do some geometry reduction here? (point which are on a line between other points)
-        return combined
-    end
-end
 
 """
 

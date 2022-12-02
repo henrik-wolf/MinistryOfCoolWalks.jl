@@ -44,4 +44,8 @@
     @testset "guess_offset_distance" begin
         
     end
+
+    @testset "correct_centerlines!" begin
+        
+    end
 end
