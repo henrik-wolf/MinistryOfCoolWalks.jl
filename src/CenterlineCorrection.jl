@@ -189,7 +189,7 @@ function correct_centerlines!(g, buildings, assumed_lane_width=3.5)
 
         # the direction of the geometry of each edge should always point in the same direction as the edge (I believe I parse it that way)
         
-        offset_dist = offset_dir * guess_offset_distance(g, edge, assumed_lane_width=assumed_lane_width)
+        offset_dist = offset_dir * guess_offset_distance(g, edge, assumed_lane_width)
 
         if abs(offset_dist) > 0
             offset_linestring = offset_line(linestring, offset_dist)

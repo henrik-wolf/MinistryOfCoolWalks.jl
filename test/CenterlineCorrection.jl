@@ -104,44 +104,24 @@
         g = shadow_graph_from_file("./data/test_clifton_bike.json"; network_type=:bike)
         b = load_british_shapefiles("./data/clifton/clifton_test.shp")
         test_edges = [Edge(476, 697), Edge(701, 554), Edge(564, 1261), Edge(961, 1011), Edge(959, 717), Edge(676, 463), Edge(879, 1496), Edge(1363, 478), Edge(196, 534), Edge(816, 608)]
-        correct_centerlines!(g, b)
+        correct_centerlines!(g, b, 2.0)
         @test true  # test that it runs...
+
+        project_local!(g, metadata(b, "center_lon"), metadata(b, "center_lat"))
+        project_local!(b.geometry, metadata(b, "center_lon"), metadata(b, "center_lat"))
+        for (i, sol) in zip(test_edges, [4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0])
+            reversed = Edge(dst(i), src(i))
+            if has_edge(g, reversed)
+                @test ArchGDAL.distance(get_prop(g, i, :edgegeom), get_prop(g, reversed, :edgegeom)) ≈ sol
+            end
+        end
+
+        # different number of lanes in directions
+        for (i, sol) in zip([Edge(1261, 731), Edge(788, 1198), Edge(490, 383), Edge(788, 468)], [6.0, 6.0, 6.0, 6.0])
+            reversed = Edge(dst(i), src(i))
+            if has_edge(g, reversed)
+                @test ArchGDAL.distance(get_prop(g, i, :edgegeom), get_prop(g, reversed, :edgegeom)) ≈ sol
+            end 
+        end
     end
 end
-
-g = shadow_graph_from_file("./data/test_clifton_bike.json"; network_type=:bike)
-
-edge_list = edges(g) |> collect
-
-inds = rand(findall(e->has_prop(g, e, :tags) && get_prop(g, e, :tags)["highway"] in MinistryOfCoolWalks.HIGHWAYS_NOT_OFFSET, edge_list), 10)
-
-[get_prop(g, e, :tags)["highway"] for e in edge_list[inds]]
-
-function compare_with_missing(tags)
-    fwd = tags["lanes:forward"]
-    bwd = tags["lanes:backward"]
-    if fwd isa Missing || bwd isa Missing
-        return false
-    elseif fwd != bwd
-        return true
-    else
-        return false
-    end
-end
-
-function triangle(x, y, w, h)
-    return ArchGDAL.createpolygon([x, x+w, x+0.3w, x], [y, y, y+h, y])
-end
-trigs = [triangle(i...) for i in zip([0,1,3,7,6], [0.2, 4.9, 5, 1], [1, 3, 5.2, 0.4, 1.0], [0.4, 7, 3.2, 1, 9.1])]
-
-l1 = ArchGDAL.createlinestring([0.0, 1.0, 6.9, 4.3], [3.4, 6.9, 5.4, 1.8])
-l2 = ArchGDAL.createlinestring([0.1, 2.0, 6.3, 7.5], [-0.3, 7.6, 6.1, 0.2])
-l3 = ArchGDAL.createlinestring([0.3, 1.2, 9.8], [2.3, 14.5, 7.5])
-using Plots
-plot()
-for (j,i) in enumerate(trigs)
-    plot!(i, label=j) |> display
-end
-plot!(l1)
-plot!(l2)
-plot!(l3)

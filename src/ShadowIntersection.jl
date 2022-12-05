@@ -151,7 +151,11 @@ end
     add_shadow_intervals!(g, shadows)
 
 adds the intersection of the polygons in dataframe `shadows` with metadata `"center_lon"` and `"center_lat"` and the geometry in
-the edgeprop `:edgegeom` of graph `g` to `g`.
+the edgeprop `:edgegeom` of graph `g` to `g`. This operation can be repeated on the same graph with various shadows.
+
+After this operation, all non-helper edges will have the additional property of ':shadowed_length'. This value is zero, if there is
+no shadow cast on the edge. If there is a shadow cast on the edge, the edge will have an additional property, ':shadowgeom', representing
+the geometry of the street in the shadow.
 """
 function add_shadow_intervals!(g, shadows)
     MIN_DIST = 1e-4  # TODO: find out what a reasonable value would be for this.
@@ -205,24 +209,11 @@ function add_shadow_intervals!(g, shadows)
         total_shadow_part_lengths == 0.0 && continue
 
         # add the relevant properties to the graph if not allready there
-        if !has_prop(g, edge, :shadowed_part_length)
-            set_prop!(g, edge, :shadowed_part_length, 0.0)
-        end
-
-        if !has_prop(g, edge, :shadowpartgeom)
-            set_prop!(g, edge, :shadowpartgeom, ArchGDAL.createlinestring())
-        end
-
         if !has_prop(g, edge, :shadowgeom)
             set_prop!(g, edge, :shadowgeom, ArchGDAL.createlinestring())
         end
 
         # update the relevant properties of the graph
-        total_shadow_part_lengths += get_prop(g, edge, :shadowed_part_length)::Float64
-        set_prop!(g, edge, :shadowed_part_length, total_shadow_part_lengths)
-
-        set_prop!(g, edge, :shadowpartgeom, full_shadow)
-
         full_shadow_previous = get_prop(g, edge, :shadowgeom)
         full_shadow = rebuild_lines(ArchGDAL.union(full_shadow, full_shadow_previous), MIN_DIST)
         reinterp_crs!(full_shadow, local_crs)
@@ -231,16 +222,9 @@ function add_shadow_intervals!(g, shadows)
         length_in_shadow = ArchGDAL.geomlength(full_shadow)
         set_prop!(g, edge, :shadowed_length, length_in_shadow)
 
-
-
-        diff = get_prop(g, edge, :shadowed_part_length)::Float64 - length_in_shadow
-        if diff < -0.1
-            @warn "the sum of the parts length is less than the length of the union for edge $edge (by $diff m)"
-        end
         push!(df, Dict(
             :edge=>get_prop(g, edge, :osm_id),
             :sl=>get_prop(g, edge, :shadowed_length),
-            :spl=>get_prop(g, edge, :shadowed_part_length),
             :fl=>get_prop(g, edge, :full_length)
         ); cols=:union)
     end

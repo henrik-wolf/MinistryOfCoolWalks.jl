@@ -2,6 +2,8 @@ using MinistryOfCoolWalks
 using SpatialIndexing
 using CoolWalksUtils
 using ShadowGraphs
+using CompositeBuildings
+using DataFrames
 using Test
 
 include("CenterlineCorrection.jl")
