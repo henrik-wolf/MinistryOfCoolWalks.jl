@@ -56,7 +56,7 @@ than in the other.)
 function guess_offset_distance(g, edge::Edge, assumed_lane_width=3.5)
     edge_tags = get_prop(g, edge, :tags)
     direction = get_prop(g, edge, :parsing_direction)
-    return guess_offset_distance(edge_tags, direction, assumed_lane_width=assumed_lane_width)
+    return guess_offset_distance(edge_tags, direction, assumed_lane_width)
 end
 
 function guess_offset_distance(edge_tags, parsing_direction, assumed_lane_width=3.5)
