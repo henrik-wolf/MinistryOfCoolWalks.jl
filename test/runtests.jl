@@ -3,6 +3,10 @@ using SpatialIndexing
 using CoolWalksUtils
 using ShadowGraphs
 using CompositeBuildings
+using ArchGDAL
+using GeoInterface
+using Graphs
+using MetaGraphs
 using DataFrames
 using Test
 
