@@ -1,5 +1,63 @@
 """
 
+    combine_lines(a, b, min_dist)
+
+combines two lines a and b at the ends where they are closer than `min_dist` apart.
+
+If `a ⊂ b`, returns `b`, if `b ⊂ a` returns `a`. Otherwise, returns all nodes of `a`, concatenated with all nodes of `b`,
+which are further away from `a` than `min_dist`.
+"""
+function combine_lines(a, b, min_dist)
+    a_points2b = [ArchGDAL.distance(p, b) for p in getgeom(a)]
+    a2b_points = [ArchGDAL.distance(a, p) for p in getgeom(b)]
+    # this somehow ignores certain edge cases like loops which are cut at just the right point...
+    if all(a_points2b .< min_dist)
+        return b
+    elseif all(a2b_points .< min_dist)
+        return a
+    else
+        # four possible cases:
+        # - overlap is at the end of a and b
+        # - overlap is at the start of a and b
+        # - overlap is at the start of a and end of b
+        # - overlap is at the end of a and start of b
+        a_indices = a_points2b[1] < min_dist ? (ngeom(a):-1:1) : (1:1:ngeom(a))
+
+        b_indices = a2b_points[1] < min_dist ? (1:1:ngeom(b)) : (ngeom(b):-1:1)
+
+        combined = ArchGDAL.createlinestring()::ArchGDAL.IGeometry{ArchGDAL.wkbLineString}
+        for a_index in a_indices
+            a_point = getgeom(a, a_index)::ArchGDAL.IGeometry{ArchGDAL.wkbPoint}
+            ArchGDAL.addpoint!(combined, getcoord(a_point)...)
+        end
+        for b_index in b_indices
+            a2b_points[b_index] < min_dist && continue
+            ArchGDAL.addpoint!(combined, getcoord(getgeom(b, b_index)::ArchGDAL.IGeometry{ArchGDAL.wkbPoint})...)
+        end
+        # we could do some geometry reduction here? (point which are on a line between other points)
+        return combined
+    end
+end
+
+
+"""
+
+    combine_along_tree(tree, start_node, lines, min_dist)
+
+recursively combines the `lines` at leafs in `tree` with the nodes one order up, 
+starting (as in, the recursion starts here. This node gets combined last) at the root `start_node`.
+The min_dist is needed to figure out how the lines should be combined. (This dependency could maybe be removed...)
+"""
+function combine_along_tree(tree, start_node, lines, min_dist)
+    mapfoldl(start->combine_along_tree(tree, start, lines, min_dist),
+            (a,b)->combine_lines(a,b, min_dist), 
+            neighbors(tree, start_node);
+            init=lines[start_node])
+end
+
+
+"""
+
     rebuild_lines(line::ArchGDAL.IGeometry{ArchGDAL.wkbLineString}, min_dist)
 
 calculates the union of lines in a (multi) linestring, merging lines which are closer than `min_dist` to one another.
@@ -56,61 +114,7 @@ function rebuild_lines(lines, min_dist)::EdgeGeomType
     end
 end
 
-"""
 
-    combine_along_tree(tree, start_node, lines, min_dist)
-
-recursively combines the `lines` at leafs in `tree` with the nodes one order up, 
-starting (as in, the recursion starts here. This node gets combined last) at the root `start_node`.
-The min_dist is needed to figure out how the lines should be combined. (This dependency could maybe be removed...)
-"""
-function combine_along_tree(tree, start_node, lines, min_dist)
-    mapfoldl(start->combine_along_tree(tree, start, lines, min_dist),
-            (a,b)->combine_lines(a,b, min_dist), 
-            neighbors(tree, start_node);
-            init=lines[start_node])
-end
-
-"""
-
-    combine_lines(a, b, min_dist)
-
-combines two lines a and b at the ends where they are closer than `min_dist` apart.
-
-If `a ⊂ b`, returns `b`, if `b ⊂ a` returns `a`. Otherwise, returns all nodes of `a`, concatenated with all nodes of `b`,
-which are further away from `a` than `min_dist`.
-"""
-function combine_lines(a, b, min_dist)
-    a_points2b = [ArchGDAL.distance(p, b) for p in getgeom(a)]
-    a2b_points = [ArchGDAL.distance(a, p) for p in getgeom(b)]
-    # this somehow ignores certain edge cases like loops which are cut at just the right point...
-    if all(a_points2b .< min_dist)
-        return b
-    elseif all(a2b_points .< min_dist)
-        return a
-    else
-        # four possible cases:
-        # - overlap is at the end of a and b
-        # - overlap is at the start of a and b
-        # - overlap is at the start of a and end of b
-        # - overlap is at the end of a and start of b
-        a_indices = a_points2b[1] < min_dist ? (ngeom(a):-1:1) : (1:1:ngeom(a))
-
-        b_indices = a2b_points[1] < min_dist ? (1:1:ngeom(b)) : (ngeom(b):-1:1)
-
-        combined = ArchGDAL.createlinestring()::ArchGDAL.IGeometry{ArchGDAL.wkbLineString}
-        for a_index in a_indices
-            a_point = getgeom(a, a_index)::ArchGDAL.IGeometry{ArchGDAL.wkbPoint}
-            ArchGDAL.addpoint!(combined, getcoord(a_point)...)
-        end
-        for b_index in b_indices
-            a2b_points[b_index] < min_dist && continue
-            ArchGDAL.addpoint!(combined, getcoord(getgeom(b, b_index)::ArchGDAL.IGeometry{ArchGDAL.wkbPoint})...)
-        end
-        # we could do some geometry reduction here? (point which are on a line between other points)
-        return combined
-    end
-end
 
 """
 
@@ -147,7 +151,11 @@ end
     add_shadow_intervals!(g, shadows)
 
 adds the intersection of the polygons in dataframe `shadows` with metadata `"center_lon"` and `"center_lat"` and the geometry in
-the edgeprop `:edgegeom` of graph `g` to `g`.
+the edgeprop `:edgegeom` of graph `g` to `g`. This operation can be repeated on the same graph with various shadows.
+
+After this operation, all non-helper edges will have the additional property of ':shadowed_length'. This value is zero, if there is
+no shadow cast on the edge. If there is a shadow cast on the edge, the edge will have an additional property, ':shadowgeom', representing
+the geometry of the street in the shadow.
 """
 function add_shadow_intervals!(g, shadows)
     MIN_DIST = 1e-4  # TODO: find out what a reasonable value would be for this.
@@ -168,11 +176,6 @@ function add_shadow_intervals!(g, shadows)
     #return shadow_tree
     @showprogress 1 "adding shadows" for edge in edges(g)
         !has_prop(g, edge, :edgegeom) && continue  # skip helpers
-
-        # this could be factored out... (but is set only once, at the cost of a has_prop call...)
-        if !has_prop(g, edge, :full_length)
-            set_prop!(g, edge, :full_length, ArchGDAL.geomlength(get_prop(g, edge, :edgegeom)::ArchGDAL.IGeometry{ArchGDAL.wkbLineString}))
-        end
 
         if !has_prop(g, edge, :shadowed_length)
             set_prop!(g, edge, :shadowed_length, 0.0)
@@ -206,24 +209,11 @@ function add_shadow_intervals!(g, shadows)
         total_shadow_part_lengths == 0.0 && continue
 
         # add the relevant properties to the graph if not allready there
-        if !has_prop(g, edge, :shadowed_part_length)
-            set_prop!(g, edge, :shadowed_part_length, 0.0)
-        end
-
-        if !has_prop(g, edge, :shadowpartgeom)
-            set_prop!(g, edge, :shadowpartgeom, ArchGDAL.createlinestring())
-        end
-
         if !has_prop(g, edge, :shadowgeom)
             set_prop!(g, edge, :shadowgeom, ArchGDAL.createlinestring())
         end
 
         # update the relevant properties of the graph
-        total_shadow_part_lengths += get_prop(g, edge, :shadowed_part_length)::Float64
-        set_prop!(g, edge, :shadowed_part_length, total_shadow_part_lengths)
-
-        set_prop!(g, edge, :shadowpartgeom, full_shadow)
-
         full_shadow_previous = get_prop(g, edge, :shadowgeom)
         full_shadow = rebuild_lines(ArchGDAL.union(full_shadow, full_shadow_previous), MIN_DIST)
         reinterp_crs!(full_shadow, local_crs)
@@ -232,16 +222,9 @@ function add_shadow_intervals!(g, shadows)
         length_in_shadow = ArchGDAL.geomlength(full_shadow)
         set_prop!(g, edge, :shadowed_length, length_in_shadow)
 
-
-
-        diff = get_prop(g, edge, :shadowed_part_length)::Float64 - length_in_shadow
-        if diff < -0.1
-            @warn "the sum of the parts length is less than the length of the union for edge $edge (by $diff m)"
-        end
         push!(df, Dict(
             :edge=>get_prop(g, edge, :osm_id),
             :sl=>get_prop(g, edge, :shadowed_length),
-            :spl=>get_prop(g, edge, :shadowed_part_length),
             :fl=>get_prop(g, edge, :full_length)
         ); cols=:union)
     end

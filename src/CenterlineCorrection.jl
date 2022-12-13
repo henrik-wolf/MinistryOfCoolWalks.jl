@@ -56,7 +56,7 @@ than in the other.)
 function guess_offset_distance(g, edge::Edge, assumed_lane_width=3.5)
     edge_tags = get_prop(g, edge, :tags)
     direction = get_prop(g, edge, :parsing_direction)
-    return guess_offset_distance(edge_tags, direction, assumed_lane_width=assumed_lane_width)
+    return guess_offset_distance(edge_tags, direction, assumed_lane_width)
 end
 
 function guess_offset_distance(edge_tags, parsing_direction, assumed_lane_width=3.5)
@@ -167,7 +167,7 @@ We check if the offset line does intersect more buildings than the original line
 a building. If there have new intersections arrisen, we retry the offsetting with `0.9, 0.8, 0.7...` times the guessed offset, while checking and,
 if true breaking, whether the additional intersections vanish.
 
-We also update the locations of the helpernodes, to reflect the offset lines.
+We also update the locations of the helper nodes, to reflect the offset lines, as well as the ":full_length" prop, to reflect the possible change in length.
 """
 function correct_centerlines!(g, buildings, assumed_lane_width=3.5)
     # project all stuff into local system
@@ -189,7 +189,7 @@ function correct_centerlines!(g, buildings, assumed_lane_width=3.5)
 
         # the direction of the geometry of each edge should always point in the same direction as the edge (I believe I parse it that way)
         
-        offset_dist = offset_dir * guess_offset_distance(g, edge, assumed_lane_width=assumed_lane_width)
+        offset_dist = offset_dir * guess_offset_distance(g, edge, assumed_lane_width)
 
         if abs(offset_dist) > 0
             offset_linestring = offset_line(linestring, offset_dist)
@@ -234,6 +234,7 @@ function correct_centerlines!(g, buildings, assumed_lane_width=3.5)
                 set_prop!(g, dst(edge), :lat, ArchGDAL.gety(p2, 0))
                 set_prop!(g, dst(edge), :pointgeom, p2)
             end
+            set_prop!(g, edge, :full_length, ArchGDAL.geomlength(offset_linestring))
         end
     end
     

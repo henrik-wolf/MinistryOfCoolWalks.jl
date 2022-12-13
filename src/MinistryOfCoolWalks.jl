@@ -10,6 +10,8 @@ module MinistryOfCoolWalks
     using ProgressMeter
     using SpatialIndexing
 
+    import ShadowGraphs: EdgeGeomType
+
 
     """
 
