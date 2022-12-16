@@ -158,7 +158,8 @@ end
 offsets the centerlines of streets (edges in `g`) stored in the edge prop `:edgegeom`, to the estimated edge of the street, using
 information available in the edgeprops `:tags` and `parsing_direction`. If it is not possible to find the offset using these `props`,
 the `assumed_lane_width` is used in conjunction with the gloabal dicts `DEFAULT_LANES_ONEWAY`, `HIGHWAYS_OFFSET` and `HIGHWAYS_NOT_OFFSET`,
-to figure out, how far the edge should be offset.
+to figure out, how far the edge should be offset. This guess is then multiplied by the `scale_factor`, to get the final distance by wich we
+then offset the line.
 
 If the highway is in `HIGHWAYS_NOT_OFFSET`, it is not going to be moved, no matter the contents of its `tags`. For the full reasoning and
 implementations see the source of `guess_offset_distance`.
@@ -169,7 +170,7 @@ if true breaking, whether the additional intersections vanish.
 
 We also update the locations of the helper nodes, to reflect the offset lines, as well as the ":full_length" prop, to reflect the possible change in length.
 """
-function correct_centerlines!(g, buildings, assumed_lane_width=3.5)
+function correct_centerlines!(g, buildings, assumed_lane_width=3.5, scale_factor=1.0)
     # project all stuff into local system
     center_lon = metadata(buildings, "center_lon")::Float64
     center_lat = metadata(buildings, "center_lat")::Float64
@@ -191,7 +192,7 @@ function correct_centerlines!(g, buildings, assumed_lane_width=3.5)
 
         # the direction of the geometry of each edge should always point in the same direction as the edge (I believe I parse it that way)
         
-        offset_dist = offset_dir * guess_offset_distance(g, edge, assumed_lane_width)
+        offset_dist = offset_dir * guess_offset_distance(g, edge, assumed_lane_width) * scale_factor
 
         if abs(offset_dist) > 0
             offset_linestring = offset_line(linestring, offset_dist)
