@@ -180,6 +180,8 @@ function correct_centerlines!(g, buildings, assumed_lane_width=3.5)
     offset_dir = get_prop(g, :offset_dir)
     building_tree = build_rtree(buildings.geometry)
 
+    nodes_to_set_coords = []
+
     @showprogress 1 "correcting centerlines" for edge in edges(g)
         !has_prop(g, edge, :edgegeom) && continue  # skip edges without geometry
         linestring = get_prop(g, edge, :edgegeom)
@@ -213,26 +215,22 @@ function correct_centerlines!(g, buildings, assumed_lane_width=3.5)
             if get_prop(g, src(edge), :helper) && !get_prop(g, dst(edge), :helper)
                 # if only the source is helper (multi edge)
                 p = ArchGDAL.pointalongline(offset_linestring, 0.5 * ArchGDAL.geomlength(offset_linestring))
-                set_prop!(g, src(edge), :lon, ArchGDAL.getx(p, 0))
-                set_prop!(g, src(edge), :lat, ArchGDAL.gety(p, 0))
                 set_prop!(g, src(edge), :pointgeom, p)
+                push!(nodes_to_set_coords, src(edge))
             elseif get_prop(g, dst(edge), :helper) && !get_prop(g, src(edge), :helper)
                 # if only the destination is helper (multi edge)
                 p = ArchGDAL.pointalongline(offset_linestring, 0.5 * ArchGDAL.geomlength(offset_linestring))
-                set_prop!(g, dst(edge), :lon, ArchGDAL.getx(p, 0))
-                set_prop!(g, dst(edge), :lat, ArchGDAL.gety(p, 0))
                 set_prop!(g, dst(edge), :pointgeom, p)
+                push!(nodes_to_set_coords, dst(edge))
             elseif get_prop(g, src(edge), :helper) && get_prop(g, dst(edge), :helper)
                 # if both, the source and destination are helpers ((multi-) self edges)
                 p1 = ArchGDAL.pointalongline(offset_linestring, 0.1 * ArchGDAL.geomlength(offset_linestring))
-                set_prop!(g, src(edge), :lon, ArchGDAL.getx(p1, 0))
-                set_prop!(g, src(edge), :lat, ArchGDAL.gety(p1, 0))
                 set_prop!(g, src(edge), :pointgeom, p1)
+                push!(nodes_to_set_coords, src(edge))
 
                 p2 = ArchGDAL.pointalongline(offset_linestring, 0.6 * ArchGDAL.geomlength(offset_linestring))
-                set_prop!(g, dst(edge), :lon, ArchGDAL.getx(p2, 0))
-                set_prop!(g, dst(edge), :lat, ArchGDAL.gety(p2, 0))
                 set_prop!(g, dst(edge), :pointgeom, p2)
+                push!(nodes_to_set_coords, dst(edge))
             end
             set_prop!(g, edge, :full_length, ArchGDAL.geomlength(offset_linestring))
         end
@@ -241,5 +239,12 @@ function correct_centerlines!(g, buildings, assumed_lane_width=3.5)
     #project all stuff back
     project_back!(buildings.geometry)
     project_back!(g)
+
+    for vertex in nodes_to_set_coords
+        p = get_prop(g, vertex, :pointgeom)
+        set_prop!(g, p, :lon, ArchGDAL.getx(p, 0))
+        set_prop!(g, p, :lat, ArchGDAL.gety(p, 0))
+    end
+
     return nothing
 end
