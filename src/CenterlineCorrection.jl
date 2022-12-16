@@ -242,8 +242,8 @@ function correct_centerlines!(g, buildings, assumed_lane_width=3.5)
 
     for vertex in nodes_to_set_coords
         p = get_prop(g, vertex, :pointgeom)
-        set_prop!(g, p, :lon, ArchGDAL.getx(p, 0))
-        set_prop!(g, p, :lat, ArchGDAL.gety(p, 0))
+        set_prop!(g, vertex, :lon, ArchGDAL.getx(p, 0))
+        set_prop!(g, vertex, :lat, ArchGDAL.gety(p, 0))
     end
 
     return nothing
