@@ -1,4 +1,9 @@
 @testset "centerline correction" begin
+
+    @testset "node_directions" begin
+        println("you need to add tests for node_directions")
+    end
+
     @testset "offset_line" begin
         line1 = ArchGDAL.createlinestring([0.0, 0.4, 1.0], [0.0, 0.6, 1.0])
         line2 = ArchGDAL.createlinestring([0.0, 0.0], [0.0, 1.0])
@@ -39,6 +44,8 @@
         @test ArchGDAL.geomlength(l3n) < ArchGDAL.geomlength(line3)
         @test ArchGDAL.distance(l3p, line3) ≈ 0.2
         @test ArchGDAL.distance(l3n, line3) ≈ 0.1
+
+        println("you need to add tests for selfintersecting offsets")
     end
 
     @testset "guess_offset_distance" begin
