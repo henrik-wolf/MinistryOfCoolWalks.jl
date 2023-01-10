@@ -5,38 +5,72 @@
 combines two lines a and b at the ends where they are closer than `min_dist` apart.
 
 If `a ⊂ b`, returns `b`, if `b ⊂ a` returns `a`. Otherwise, returns all nodes of `a`, concatenated with all nodes of `b`,
-which are further away from `a` than `min_dist`.
+which are further away from `a` than `min_dist`. If a and b for a circle, special care is taken to not mess up the order.
 """
 function combine_lines(a, b, min_dist)
-    a_points2b = [ArchGDAL.distance(p, b) for p in getgeom(a)]
-    a2b_points = [ArchGDAL.distance(a, p) for p in getgeom(b)]
-    # this somehow ignores certain edge cases like loops which are cut at just the right point...
-    if all(a_points2b .< min_dist)
-        return b
-    elseif all(a2b_points .< min_dist)
-        return a
-    else
-        # four possible cases:
+	a_points2b = [ArchGDAL.distance(p, b) for p in getgeom(a)]
+    b_points2a = [ArchGDAL.distance(a, p) for p in getgeom(b)]
+	
+	# check if one line is fully contained in the other
+	if ArchGDAL.contains(ArchGDAL.buffer(b, min_dist, 2), a)
+		return b
+	elseif ArchGDAL.contains(ArchGDAL.buffer(a, min_dist, 2), b)
+		return a
+	else
+	    # FIVE possible cases:
         # - overlap is at the end of a and b
         # - overlap is at the start of a and b
         # - overlap is at the start of a and end of b
         # - overlap is at the end of a and start of b
-        a_indices = a_points2b[1] < min_dist ? (ngeom(a):-1:1) : (1:1:ngeom(a))
+		# - overlap is at the end AND start of a and b
+        a_indices = a_points2b[end] < min_dist ? (1:1:ngeom(a)) : (ngeom(a):-1:1)
+        b_indices = b_points2a[1] < min_dist ? (1:1:ngeom(b)) : (ngeom(b):-1:1)
+		# check if lines form circle (start and end of a is close to b and start and end of b is close to a)
+		# the case where they are the same is already captured above
+		closing_cycle = a_points2b[1] < min_dist && a_points2b[end] < min_dist && b_points2a[1] < min_dist && b_points2a[end] < min_dist
+		if closing_cycle
+			# figure out correct direction to go through b
+			# a will be walked through forwards
+			first_high_b = findfirst(>(min_dist), b_points2a)
+			last_high_b = findlast(>(min_dist), b_points2a)
+			
+			segment_first = ArchGDAL.createlinestring()
+			ArchGDAL.addpoint!(segment_first, getcoord(getgeom(b, first_high_b-1))...)
+			ArchGDAL.addpoint!(segment_first, getcoord(getgeom(b, first_high_b))...)
+			
+			segment_last = ArchGDAL.createlinestring()
+			ArchGDAL.addpoint!(segment_last, getcoord(getgeom(b, last_high_b))...)
+			ArchGDAL.addpoint!(segment_last, getcoord(getgeom(b, last_high_b+1))...)
 
-        b_indices = a2b_points[1] < min_dist ? (1:1:ngeom(b)) : (ngeom(b):-1:1)
+			a_end = getgeom(a, ngeom(a))
 
-        combined = ArchGDAL.createlinestring()::ArchGDAL.IGeometry{ArchGDAL.wkbLineString}
+			first_contained = ArchGDAL.contains(ArchGDAL.buffer(segment_first, min_dist, 2), a_end)
+			last_contained = ArchGDAL.contains(ArchGDAL.buffer(segment_last, min_dist, 2), a_end)
+
+			if first_contained && !last_contained
+				b_indices = 1:1:ngeom(b) |> collect
+			elseif last_contained && !first_contained
+				b_indices = ngeom(b):-1:1 |> collect
+			else
+				throw(ErrorException("the end point of a was $(first_contained ? "contained in both" : "not contained in either") one of the intervals it should have been contained in."))
+			end
+		end
+
+		combined = ArchGDAL.createlinestring()::ArchGDAL.IGeometry{ArchGDAL.wkbLineString}
         for a_index in a_indices
             a_point = getgeom(a, a_index)::ArchGDAL.IGeometry{ArchGDAL.wkbPoint}
             ArchGDAL.addpoint!(combined, getcoord(a_point)...)
         end
         for b_index in b_indices
-            a2b_points[b_index] < min_dist && continue
+            b_points2a[b_index] < min_dist && continue
             ArchGDAL.addpoint!(combined, getcoord(getgeom(b, b_index)::ArchGDAL.IGeometry{ArchGDAL.wkbPoint})...)
         end
+		if closing_cycle  # the above cuts off all the stuff close to the other line,therefore we just add the final point
+			ArchGDAL.addpoint!(combined, getcoord(getgeom(combined, 1)::ArchGDAL.IGeometry{ArchGDAL.wkbPoint})...)
+		end
         # we could do some geometry reduction here? (point which are on a line between other points)
-        return combined
-    end
+		return combined
+	end
 end
 
 
@@ -180,6 +214,9 @@ function add_shadow_intervals!(g, shadows)
         if !has_prop(g, edge, :shadowed_length)
             set_prop!(g, edge, :shadowed_length, 0.0)
         end
+        if !has_prop(g, edge, :buffer_shadowed_length)
+            set_prop!(g, edge, :buffer_shadowed_length, 0.0)
+        end
 
         linestring = get_prop(g, edge, :edgegeom)::EdgeGeomType
         linestring_rect = rect_from_geom(linestring)
@@ -215,12 +252,16 @@ function add_shadow_intervals!(g, shadows)
 
         # update the relevant properties of the graph
         full_shadow_previous = get_prop(g, edge, :shadowgeom)
-        full_shadow = rebuild_lines(ArchGDAL.union(full_shadow, full_shadow_previous), MIN_DIST)
+        full_shadow_segmented = ArchGDAL.union(full_shadow, full_shadow_previous) 
+        set_prop!(g, edge, :shadowgeom_segmented, full_shadow_segmented)
+
+        full_shadow = rebuild_lines(full_shadow_segmented, MIN_DIST)
         reinterp_crs!(full_shadow, local_crs)
         set_prop!(g, edge, :shadowgeom, full_shadow)
 
         length_in_shadow = ArchGDAL.geomlength(full_shadow)
         set_prop!(g, edge, :shadowed_length, length_in_shadow)
+        set_prop!(g, edge, :buffer_shadowed_length, get_length_by_buffering(full_shadow, 1e-3, 2, edge))
 
         push!(df, Dict(
             :edge=>get_prop(g, edge, :osm_id),
