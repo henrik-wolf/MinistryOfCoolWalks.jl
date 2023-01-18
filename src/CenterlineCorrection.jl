@@ -1,19 +1,16 @@
 """
-    offset_line(line, distance)
 
-creates new `ArchGDAL` linestring where all segments are offset parallel to the original segment of `line`, with a distance of `distance`.
-Looking down the line (from the first segment to the second...), a positive distance moves the line to the right, a negative distance to the left.
-The line is expected to be in a projected coordinate system, which is going to be applied to the new, offset line as well.
+    node_directions(x, y)
+
+calculates the (scaled) direction in which the nodes given by 'x' and 'y' coordinates need to be offset, such that the connections between the nodes remain
+parallel to the original connections. Returns array of 2d vectors.
 """
-function offset_line(line, distance)
-	points = [collect(getcoord(p)) for p in getgeom(line)]
-	x = [i[1] for i in points]
-	y = [i[2] for i in points]
+function node_directions(x, y)
 	# TODO: figure out how to handle endpoints
     # TODO: figure out if we need to detect intersections and trim of resulting loops...
 	deltas = [unit([y[2]-y[1], -(x[2]-x[1])])]
 	# for everything not endpoints, calculate offset direction of edge
-	for i in 2:length(points)
+	for i in 2:length(x)
 		direction = unit([y[i]-y[i-1], -(x[i]-x[i-1])])
 		push!(deltas, direction)
 	end
@@ -28,13 +25,52 @@ function offset_line(line, distance)
 	node_directions = unit.(deltas[1:end-1] .+ deltas[2:end])
     scalar_products = [node_dir' * edge_dir for (node_dir, edge_dir) in zip(node_directions, deltas)]
     node_directions ./= scalar_products
+	return node_directions
+end
+
+
+"""
+    offset_line(line, distance)
+
+creates new `ArchGDAL` linestring where all segments are offset parallel to the original segment of `line`, with a distance of `distance`.
+Looking down the line (from the first segment to the second...), a positive distance moves the line to the right, a negative distance to the left.
+The line is expected to be in a projected coordinate system, which is going to be applied to the new, offset line as well.
+If, continious offsetting the length of a line segment where to reach a length of 0, the two adjacent points are automatically merged and offsetting
+is continued using the new configuration.
+"""
+function offset_line(line, distance)
+	points = [collect(getcoord(p)) for p in getgeom(line)]
+	x = [i[1] for i in points]
+	y = [i[2] for i in points]
 	
-	new_line = ArchGDAL.createlinestring()
-    for point in points + distance * node_directions
-        ArchGDAL.addpoint!(new_line, point...)
-    end
-    reinterp_crs!(new_line, ArchGDAL.getspatialref(line))
-    return new_line
+	node_dirs = node_directions(x, y)
+
+	dx = x[2:end] .- x[1:end-1]
+	dd = node_dirs[1:end-1] .- node_dirs[2:end]
+	max_offsets = dx ./ [i[1] for i in dd]
+	oks = map(maxo->sign(distance) != sign(maxo) || abs(distance) < abs(maxo), max_offsets)
+	if reduce(&, oks)
+		new_line = ArchGDAL.createlinestring()
+	    for point in points + distance * node_dirs
+	        ArchGDAL.addpoint!(new_line, point...)
+	    end
+	    reinterp_crs!(new_line, ArchGDAL.getspatialref(line))
+	    return new_line
+	else
+		# signs are the same for distance and not ok offsets
+		closest_index = findmin(abs, max_offsets)[2]
+		closest_value = max_offsets[closest_index]
+		distance_remaining = distance - closest_value
+		popat!(points, closest_index)
+		popat!(node_dirs, closest_index)
+
+		new_line = ArchGDAL.createlinestring()
+	    for point in points + closest_value * node_dirs
+	        ArchGDAL.addpoint!(new_line, point...)
+	    end
+	    reinterp_crs!(new_line, ArchGDAL.getspatialref(line))
+	    return offset_line(new_line, distance_remaining)
+	end
 end
 
 #TODO: make this more clevererererer
