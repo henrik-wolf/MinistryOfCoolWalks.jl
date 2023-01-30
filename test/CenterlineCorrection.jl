@@ -37,7 +37,7 @@
         l3n = MinistryOfCoolWalks.offset_line(line3, -0.1)
         p3p = [(ArchGDAL.getx(p, 0), ArchGDAL.gety(p, 0)) for p in getgeom(l3p)]
         p3n = [(ArchGDAL.getx(p, 0), ArchGDAL.gety(p, 0)) for p in getgeom(l3n)]
-        
+
         @test p3p == [(-0.2, -0.2), (1.2, -0.2), (1.2, 1.2), (-0.2, 1.2), (-0.2, -0.2)]
         @test p3n == [(0.1, 0.1), (0.9, 0.1), (0.9, 0.9), (0.1, 0.9), (0.1, 0.1)]
         @test ArchGDAL.geomlength(l3p) > ArchGDAL.geomlength(line3)
@@ -67,12 +67,12 @@
         # edges in no offset
         for edge_id in [2055, 3347, 523, 2246, 2658, 2073, 611, 3757, 1419, 1622]
             edge = edge_list[edge_id]
-            @test MinistryOfCoolWalks.guess_offset_distance(g, edge, edge_id/15) == 0.0
+            @test MinistryOfCoolWalks.guess_offset_distance(g, edge, edge_id / 15) == 0.0
         end
 
         # edges with new highway type
         for new_higway in ["crawlway", "red_carpet", "swimmlane"]
-            @test MinistryOfCoolWalks.guess_offset_distance(Dict("highway"=>new_higway, "width"=>missing), 1, 2.0) == 0.0
+            @test MinistryOfCoolWalks.guess_offset_distance(Dict("highway" => new_higway, "width" => missing), 1, 2.0) == 0.0
         end
 
         #edges with different number of lanes in both directions
@@ -89,9 +89,9 @@
 
     @testset "check_building_intersection" begin
         function triangle(x, y, w, h)
-            return ArchGDAL.createpolygon([x, x+w, x+0.3w, x], [y, y, y+h, y])
+            return ArchGDAL.createpolygon([x, x + w, x + 0.3w, x], [y, y, y + h, y])
         end
-        trigs = [triangle(i...) for i in zip([0,1,3,7,6], [0.2, 4.9, 5, 1], [1, 3, 5.2, 0.4, 1.0], [0.4, 7, 3.2, 1, 9.1])]
+        trigs = [triangle(i...) for i in zip([0, 1, 3, 7, 6], [0.2, 4.9, 5, 1], [1, 3, 5.2, 0.4, 1.0], [0.4, 7, 3.2, 1, 9.1])]
 
         rtree = build_rtree(trigs)
 
@@ -99,8 +99,8 @@
         l2 = ArchGDAL.createlinestring([0.1, 2.0, 6.3, 7.5], [-0.3, 7.6, 6.1, 0.2])
         l3 = ArchGDAL.createlinestring([0.3, 1.2, 9.8], [2.3, 14.5, 7.5])
 
-        
-        @test [i in trigs[[2,3]] for i in MinistryOfCoolWalks.check_building_intersection(rtree, l1)] |> all
+
+        @test [i in trigs[[2, 3]] for i in MinistryOfCoolWalks.check_building_intersection(rtree, l1)] |> all
         @test length(MinistryOfCoolWalks.check_building_intersection(rtree, l1)) == 2
         @test [i in trigs for i in MinistryOfCoolWalks.check_building_intersection(rtree, l2)] |> all
         @test length(MinistryOfCoolWalks.check_building_intersection(rtree, l2)) == 4
@@ -128,7 +128,64 @@
             reversed = Edge(dst(i), src(i))
             if has_edge(g, reversed)
                 @test ArchGDAL.distance(get_prop(g, i, :edgegeom), get_prop(g, reversed, :edgegeom)) ≈ sol
-            end 
+            end
         end
+
+        # check repeatability
+        g1 = shadow_graph_from_file("./data/test_clifton_bike.json"; network_type=:bike)
+        g2 = shadow_graph_from_file("./data/test_clifton_bike.json"; network_type=:bike)
+        b2 = load_british_shapefiles("./data/clifton/clifton_test.shp")
+
+        correct_centerlines!(g1, b2, 2.0)
+        correct_centerlines!(g2, b2, 1.0)
+        correct_centerlines!(g2, b2, 2.0)
+
+        # test if only last application counts
+        project_local!(g1, -1, 53)
+        project_local!(g2, -1, 53)
+        @test map(edges(g1)) do e
+            prop_lengths_equal = length(props(g1, e)) == length(props(g2, e))
+            if !get_prop(g1, e, :helper)
+                osm_id_same = get_prop(g1, e, :osm_id) == get_prop(g2, e, :osm_id)
+                full_length_equal = get_prop(g1, e, :full_length) ≈ get_prop(g2, e, :full_length)
+
+                distance_base_g1 = ArchGDAL.distance(get_prop(g1, e, :edgegeom), get_prop(g1, e, :edgegeom_base))
+                distance_base_g2 = ArchGDAL.distance(get_prop(g2, e, :edgegeom), get_prop(g2, e, :edgegeom_base))
+                distance_to_base_equal = isapprox(distance_base_g1, distance_base_g2, atol=1e-6)
+                return osm_id_same && prop_lengths_equal && full_length_equal && distance_to_base_equal
+            end
+            return prop_lengths_equal
+        end |> all
+        project_back!(g1)
+        project_back!(g2)
+
+        s2 = CompositeBuildings.cast_shadow(b2, :height_mean, [1.0, -0.4, 0.2])
+        add_shadow_intervals!(g2, s2)
+
+        # check if there are edges with new props
+        @test map(edges(g1)) do e
+                  prop_lengths_equal = length(props(g1, e)) == length(props(g2, e))
+              end |> all |> !
+
+        # repeat offsetting
+        correct_centerlines!(g2, b2, 2.0)
+
+        # test if the offsetting reset all changed fields
+        project_local!(g1, -1, 53)
+        project_local!(g2, -1, 53)
+        @test map(edges(g1)) do e
+            prop_lengths_equal = length(props(g1, e)) == length(props(g2, e))
+            if !get_prop(g1, e, :helper)
+                osm_id_same = get_prop(g1, e, :osm_id) == get_prop(g2, e, :osm_id)
+                full_length_equal = get_prop(g1, e, :full_length) ≈ get_prop(g2, e, :full_length)
+                distance_base_g1 = ArchGDAL.distance(get_prop(g1, e, :edgegeom), get_prop(g1, e, :edgegeom_base))
+                distance_base_g2 = ArchGDAL.distance(get_prop(g2, e, :edgegeom), get_prop(g2, e, :edgegeom_base))
+                distance_to_base_equal = distance_base_g1 ≈ distance_base_g2
+                return osm_id_same && prop_lengths_equal && full_length_equal && distance_to_base_equal
+            end
+            return prop_lengths_equal
+        end |> all
+        project_back!(g1)
+        project_back!(g2)
     end
 end
