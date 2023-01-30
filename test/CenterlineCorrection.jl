@@ -180,7 +180,7 @@
                 full_length_equal = get_prop(g1, e, :full_length) ≈ get_prop(g2, e, :full_length)
                 distance_base_g1 = ArchGDAL.distance(get_prop(g1, e, :edgegeom), get_prop(g1, e, :edgegeom_base))
                 distance_base_g2 = ArchGDAL.distance(get_prop(g2, e, :edgegeom), get_prop(g2, e, :edgegeom_base))
-                distance_to_base_equal = distance_base_g1 ≈ distance_base_g2
+                distance_to_base_equal = isapprox(distance_base_g1, distance_base_g2, atol=1e-6)
                 return osm_id_same && prop_lengths_equal && full_length_equal && distance_to_base_equal
             end
             return prop_lengths_equal
