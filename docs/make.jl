@@ -12,17 +12,18 @@ makedocs(;
         prettyurls=get(ENV, "CI", "false") == "true",
         canonical="https://SuperGrobi.github.io/MinistryOfCoolWalks.jl",
         edit_link="main",
-        assets=String[],
+        assets=String[]
     ),
     pages=[
         "Home" => "index.md",
         "Polygon RTrees" => "RTreeBuilding.md",
         "Centerline correction" => "CenterlineCorrection.md",
-        "Shadow intersections" => "ShadowIntersection.md"
-    ],
+        "Shadow intersections" => "ShadowIntersection.md",
+        "Routing" => "Routing.md"
+    ]
 )
 
 deploydocs(;
     repo="github.com/SuperGrobi/MinistryOfCoolWalks.jl",
-    devbranch="main",
+    devbranch="main"
 )
