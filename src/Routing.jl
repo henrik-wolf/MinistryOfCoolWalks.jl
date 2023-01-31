@@ -187,7 +187,7 @@ recalculates the lengths of the paths encoded in `state` using the supplied `wei
 function reevaluate_distances(state, weights)
     new_dists = similar(state.dists, eltype(weights))
     new_dists .= typemax(eltype(weights))
-    for start_from in enumerate_paths(state)
+    @showprogress 1 "reevaluating distances" for start_from in enumerate_paths(state)
         for path in start_from
             length(path) == 0 && continue
             new_dists[path[1], path[end]] = get_path_length(path, weights)

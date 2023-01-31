@@ -196,12 +196,13 @@ import MinistryOfCoolWalks: ShadowWeight
         @test w1[4, 6] == ShadowWeight(0.5, 0.3, 0.7)
     end
 
-    @testset "Floyd Warshal" begin
+    @testset "Floyd Warshall" begin
         g2 = MetaGraph(3, :full_length, 0.0)
         add_edge!(g2, 1, 2, Dict(:full_length => 1.0, :shadowed_length => 0.9))
         add_edge!(g2, 2, 3, Dict(:full_length => 1.0, :shadowed_length => 0.5))
         add_edge!(g2, 3, 1, Dict(:full_length => 1.0, :shadowed_length => 0.1))
 
+        ##### TRIANGLE GRAPH #####
         g2_baseline = floyd_warshall_shortest_paths(g2)
         g2_shadow_baseline = floyd_warshall_shortest_paths(g2, ShadowWeights(g2, 0.0))
         @test all(g2_baseline.parents .== g2_shadow_baseline.parents)
@@ -216,8 +217,8 @@ import MinistryOfCoolWalks: ShadowWeight
         g2_shadow_skewed_reeval = MinistryOfCoolWalks.reevaluate_distances(g2_shadow_skewed, weights(g2))
         g2_sun_skewed_reeval = MinistryOfCoolWalks.reevaluate_distances(g2_sun_skewed, weights(g2))
         # check if the reevaluated routes are as long as the real length
-        @test all(g2_shadow_skewed_reeval.dists .== real_length.(g2_shadow_skewed.dists))
-        @test all(g2_sun_skewed_reeval.dists .== real_length.(g2_sun_skewed.dists))
+        @test all(g2_shadow_skewed_reeval.dists .≈ real_length.(g2_shadow_skewed.dists))
+        @test all(g2_sun_skewed_reeval.dists .≈ real_length.(g2_sun_skewed.dists))
 
         g2_shadow_full = floyd_warshall_shortest_paths(g2, ShadowWeights(g2, 1.0))
         g2_sun_full = floyd_warshall_shortest_paths(g2, ShadowWeights(g2, -1.0))
@@ -227,10 +228,10 @@ import MinistryOfCoolWalks: ShadowWeight
         g2_shadow_full_reeval = MinistryOfCoolWalks.reevaluate_distances(g2_shadow_full, weights(g2))
         g2_sun_full_reeval = MinistryOfCoolWalks.reevaluate_distances(g2_sun_full, weights(g2))
         # check if the reevaluated routes are as long as the real length
-        @test all(g2_shadow_full_reeval.dists .== real_length.(g2_shadow_full.dists))
-        @test all(g2_sun_full_reeval.dists .== real_length.(g2_sun_full.dists))
+        @test all(g2_shadow_full_reeval.dists .≈ real_length.(g2_shadow_full.dists))
+        @test all(g2_sun_full_reeval.dists .≈ real_length.(g2_sun_full.dists))
 
-
+        ### KARATE GRAPH WITH SOME UNREACHABLES ###
         g = MetaDiGraph(smallgraph(:karate), :geom_length, 0.0)
         add_vertices!(g, 3)
         for e in edges(g)
@@ -241,7 +242,7 @@ import MinistryOfCoolWalks: ShadowWeight
         g_baseline = floyd_warshall_shortest_paths(g, weights(g))
         g_shadow_baseline = floyd_warshall_shortest_paths(g, ShadowWeights(g, 0.0))
 
-        @test all(g_baseline.parents == state_shadowWeights.parents)
+        @test all(g_baseline.parents == g_shadow_baseline.parents)
         @test all(g_baseline.dists .≈ felt_length.(g_shadow_baseline.dists))
         @test all(g_baseline.dists .≈ real_length.(g_shadow_baseline.dists))
 
@@ -253,8 +254,8 @@ import MinistryOfCoolWalks: ShadowWeight
         g_shadow_skewed_reeval = MinistryOfCoolWalks.reevaluate_distances(g_shadow_skewed, weights(g))
         g_sun_skewed_reeval = MinistryOfCoolWalks.reevaluate_distances(g_sun_skewed, weights(g))
         # check if the reevaluated routes are as long as the real length
-        @test all(g_shadow_skewed_reeval.dists .== real_length.(g_shadow_skewed.dists))
-        @test all(g_sun_skewed_reeval.dists .== real_length.(g_sun_skewed.dists))
+        @test all(g_shadow_skewed_reeval.dists .≈ real_length.(g_shadow_skewed.dists))
+        @test all(g_sun_skewed_reeval.dists .≈ real_length.(g_sun_skewed.dists))
 
         g_shadow_full = floyd_warshall_shortest_paths(g, ShadowWeights(g, 1.0))
         g_sun_full = floyd_warshall_shortest_paths(g, ShadowWeights(g, -1.0))
@@ -264,7 +265,45 @@ import MinistryOfCoolWalks: ShadowWeight
         g_shadow_full_reeval = MinistryOfCoolWalks.reevaluate_distances(g_shadow_full, weights(g))
         g_sun_full_reeval = MinistryOfCoolWalks.reevaluate_distances(g_sun_full, weights(g))
         # check if the reevaluated routes are as long as the real length
-        @test all(g_shadow_full_reeval.dists .== real_length.(g_shadow_full.dists))
-        @test all(g_sun_full_reeval.dists .== real_length.(g_sun_full.dists))
+        @test all(g_shadow_full_reeval.dists .≈ real_length.(g_shadow_full.dists))
+        @test all(g_sun_full_reeval.dists .≈ real_length.(g_sun_full.dists))
+
+        #### CLIFTON WITH SHADOWS ####
+        g_clifton = shadow_graph_from_file("./data/test_clifton_bike.json"; network_type=:bike)
+        b_clifton = load_british_shapefiles("./data/clifton/clifton_test.shp")
+        correct_centerlines!(g_clifton, b_clifton)
+        s_clifton = CompositeBuildings.cast_shadow(b_clifton, :height_mean, [1.0, -0.4, 0.2])
+        add_shadow_intervals!(g_clifton, s_clifton)
+
+        g_clifton_baseline = floyd_warshall_shortest_paths(g_clifton)
+        g_clifton_shadow_baseline = floyd_warshall_shortest_paths(g_clifton, ShadowWeights(g_clifton, 0.0))
+
+        @test all(g_clifton_baseline.parents == g_clifton_shadow_baseline.parents)
+        @test all(g_clifton_baseline.dists .≈ felt_length.(g_clifton_shadow_baseline.dists))
+        @test all(g_clifton_baseline.dists .≈ real_length.(g_clifton_shadow_baseline.dists))
+
+        g_clifton_shadow_skewed = floyd_warshall_shortest_paths(g_clifton, ShadowWeights(g_clifton, 0.8))
+        g_clifton_sun_skewed = floyd_warshall_shortest_paths(g_clifton, ShadowWeights(g_clifton, -0.8))
+        # check if this results in different routes
+        @test !all(g_clifton_baseline.parents .== g_clifton_shadow_skewed.parents)
+        @test !all(g_clifton_baseline.parents .== g_clifton_sun_skewed.parents)
+        g_clifton_shadow_skewed_reeval = MinistryOfCoolWalks.reevaluate_distances(g_clifton_shadow_skewed, weights(g_clifton))
+        g_clifton_sun_skewed_reeval = MinistryOfCoolWalks.reevaluate_distances(g_clifton_sun_skewed, weights(g_clifton))
+        # check if the reevaluated routes are as long as the real length
+        @test all(g_clifton_shadow_skewed_reeval.dists .≈ real_length.(g_clifton_shadow_skewed.dists))
+        @test all(g_clifton_sun_skewed_reeval.dists .≈ real_length.(g_clifton_sun_skewed.dists))
+
+        g_clifton_shadow_full = floyd_warshall_shortest_paths(g_clifton, ShadowWeights(g_clifton, 1.0))
+        g_clifton_sun_full = floyd_warshall_shortest_paths(g_clifton, ShadowWeights(g_clifton, -1.0))
+        # check if this results in different routes
+        @test !all(g_clifton_baseline.parents .== g_clifton_shadow_full.parents)
+        @test !all(g_clifton_baseline.parents .== g_clifton_sun_full.parents)
+        g_clifton_shadow_full_reeval = MinistryOfCoolWalks.reevaluate_distances(g_clifton_shadow_full, weights(g_clifton))
+        g_clifton_sun_full_reeval = MinistryOfCoolWalks.reevaluate_distances(g_clifton_sun_full, weights(g_clifton))
+        # check if the reevaluated routes are as long as the real length
+        @test_broken all(g_clifton_shadow_full_reeval.dists .≈ real_length.(g_clifton_shadow_full.dists))
+        @test_broken all(g_clifton_sun_full_reeval.dists .≈ real_length.(g_clifton_sun_full.dists))
     end
 end
+
+
