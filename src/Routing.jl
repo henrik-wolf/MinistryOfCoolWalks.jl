@@ -7,7 +7,7 @@ Typ representing the weight on one edge.
 and `a ∈ [-1.0, 0.0)` favours sunny edges. Value must be in `[-1.0, 1.0]`, otherwise, an Error is thrown.
 - `shade` represents the (real world) length of the edge in shade. Has to be non-negative, otherwise, an Error is thrown.
 - `sun` represents the (real world) length of the edge in the sun. Has to be non-negative, otherwise, an Error is thrown.
-This also means, that `shade+sun=real_world_street_length`. 
+This also means, that `shade+sun=real_world_street_length`.
 """
 struct ShadowWeight <: Real
     a::Float64
@@ -133,6 +133,11 @@ end
 Base constructor for `ShadowWeights`. `a` has to be in `[-1.0, 1.0]`, otherwise an error will be thrown.
 `full_weights` and `shadow_weights` are the full lengths of the edges and the length of these edges in shadow, respectively.
 Make sure that `all(shadow_weights .<= full_weights) == true`, otherwise, the results might not be what you expect.
+
+If there exist multiple edges/streets either fully in the sun or fully in the shade, the resulting `real_length`s at `a==-1.0` and `a==1.0` might not
+be the same as the ones calculated by adding every `full_length` along this path, since, if there exit multiple ways fully in the shade/sun, they look
+the same length (that is: zero) to the routing algorithm, while their real length might differ. A fix for this behaviour is to not use values of exactly
+`1.0 and -1.0`, but rather to think about `lim a -> 1.0` and `lim a -> -1.0`.
 
     ShadowWeights(g::AbstractMetaGraph, a; shadow_source=:shadowed_length)
 
