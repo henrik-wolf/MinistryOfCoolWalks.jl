@@ -135,6 +135,12 @@ git-tree-sha1 = "6e47d11ea2776bc5627421d59cdcc1296c058071"
 uuid = "8f4d0f93-b110-5947-807f-2305c1781a2d"
 version = "1.7.0"
 
+[[deps.ConstructionBase]]
+deps = ["LinearAlgebra"]
+git-tree-sha1 = "fb21ddd70a051d882a1686a5a550990bbe371a95"
+uuid = "187b0558-2788-49d3-abe0-74a17ed4e7c9"
+version = "1.4.1"
+
 [[deps.CoolWalksUtils]]
 deps = ["ArchGDAL", "Dates"]
 path = "../../CoolWalksUtils.jl"
@@ -448,9 +454,9 @@ uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
 
 [[deps.Libiconv_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "42b62845d70a619f063a7da093d995ec8e15e778"
+git-tree-sha1 = "c7cb1f5d892775ba13767a87c7ada0b980ea0a71"
 uuid = "94ce4f54-9a6c-5748-9c1c-f9c7231a4531"
-version = "1.16.1+1"
+version = "1.16.1+2"
 
 [[deps.Libtiff_jll]]
 deps = ["Artifacts", "JLLWrappers", "JpegTurbo_jll", "LERC_jll", "Libdl", "Pkg", "Zlib_jll", "Zstd_jll"]
@@ -534,7 +540,7 @@ uuid = "626554b9-1ddb-594c-aa3c-2596fe9399a5"
 version = "0.7.1"
 
 [[deps.MinistryOfCoolWalks]]
-deps = ["ArchGDAL", "CompositeBuildings", "CoolWalksUtils", "DataFrames", "GeoInterface", "Graphs", "MetaGraphs", "ProgressMeter", "PyCall", "ShadowGraphs", "SpatialIndexing", "TreeLoaders"]
+deps = ["ArchGDAL", "CompositeBuildings", "CoolWalksUtils", "DataFrames", "GeoInterface", "Graphs", "MetaGraphs", "ProgressMeter", "Setfield", "ShadowGraphs", "SpatialIndexing", "TreeLoaders"]
 path = ".."
 uuid = "8af523f7-f13f-4fcd-8beb-cc917078799e"
 version = "0.1.0"
@@ -725,9 +731,9 @@ version = "0.7.0"
 
 [[deps.SQLite_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "Zlib_jll"]
-git-tree-sha1 = "b89fe49b6a19cde7aefa7e7cf013c1160367f37d"
+git-tree-sha1 = "2c761a91fb503e94bd0130fcf4352166c3c555bc"
 uuid = "76ed43ae-9a5d-5a62-8c75-30186b810ce8"
-version = "3.40.0+0"
+version = "3.40.0+1"
 
 [[deps.SentinelArrays]]
 deps = ["Dates", "Random"]
@@ -737,6 +743,12 @@ version = "1.3.16"
 
 [[deps.Serialization]]
 uuid = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
+
+[[deps.Setfield]]
+deps = ["ConstructionBase", "Future", "MacroTools", "StaticArraysCore"]
+git-tree-sha1 = "e2cc6d8c88613c05e1defb55170bf5ff211fbeac"
+uuid = "efcf1570-3423-57d1-acb7-fd33fddbac46"
+version = "1.1.1"
 
 [[deps.ShadowGraphs]]
 deps = ["ArchGDAL", "CSV", "CoolWalksUtils", "DataFrames", "Folium", "Graphs", "LightOSM", "LightXML", "MetaGraphs", "ProgressMeter", "Statistics", "StatsBase"]
