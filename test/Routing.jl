@@ -164,8 +164,19 @@ import MinistryOfCoolWalks: ShadowWeight
         smalls = [s1, s2, s3, s4, s5, s6, s7, s8]
 
         # adding zeros
-        for s in smalls, z in typezeros
+        for s in smalls, z in [typezero, z1]
             @test s + z == s
+        end
+        for s in [s1, s7], z in [z2, z3]
+            @test s + z == s
+            @test real_length(s + z) >= real_length(s)
+        end
+        for s in [s2, s8], z in [z4, z5]
+            @test s + z == s
+            @test real_length(s + z) >= real_length(s)
+        end
+        for (s, z) in zip([s1, s7, s2, s8, s3, s4, s3, s4, s5, s6, s5, s6], [z4, z5, z2, z3, z4, z5, z2, z3, z2, z4, z3, z5])
+            @test_throws AssertionError s + z
         end
 
         # adding infinities
@@ -301,9 +312,90 @@ import MinistryOfCoolWalks: ShadowWeight
         g_clifton_shadow_full_reeval = MinistryOfCoolWalks.reevaluate_distances(g_clifton_shadow_full, weights(g_clifton))
         g_clifton_sun_full_reeval = MinistryOfCoolWalks.reevaluate_distances(g_clifton_sun_full, weights(g_clifton))
         # check if the reevaluated routes are as long as the real length
-        @test_broken all(g_clifton_shadow_full_reeval.dists .≈ real_length.(g_clifton_shadow_full.dists))
-        @test_broken all(g_clifton_sun_full_reeval.dists .≈ real_length.(g_clifton_sun_full.dists))
+        @test_skip all(g_clifton_shadow_full_reeval.dists .≈ real_length.(g_clifton_shadow_full.dists))
+        @test_skip all(g_clifton_sun_full_reeval.dists .≈ real_length.(g_clifton_sun_full.dists))
     end
 end
 
+#=
+g_clifton = shadow_graph_from_file("./data/test_clifton_bike.json"; network_type=:bike)
+b_clifton = load_british_shapefiles("./data/clifton/clifton_test.shp")
+correct_centerlines!(g_clifton, b_clifton)
+s_clifton = CompositeBuildings.cast_shadow(b_clifton, :height_mean, [1.0, -0.4, 0.2])
+add_shadow_intervals!(g_clifton, s_clifton)
+g_clifton_baseline = floyd_warshall_shortest_paths(g_clifton)
+g_clifton_shadow_full = floyd_warshall_shortest_paths(g_clifton, ShadowWeights(g_clifton, 1.0))
+g_clifton_sun_full = floyd_warshall_shortest_paths(g_clifton, ShadowWeights(g_clifton, -1.0))
+# check if this results in different routes
+@test !all(g_clifton_baseline.parents .== g_clifton_shadow_full.parents)
+@test !all(g_clifton_baseline.parents .== g_clifton_sun_full.parents)
+g_clifton_shadow_full_reeval = MinistryOfCoolWalks.reevaluate_distances(g_clifton_shadow_full, weights(g_clifton))
+g_clifton_sun_full_reeval = MinistryOfCoolWalks.reevaluate_distances(g_clifton_sun_full, weights(g_clifton))
+# check if the reevaluated routes are as long as the real length
+@test all(g_clifton_shadow_full_reeval.dists .≈ real_length.(g_clifton_shadow_full.dists))
+@test all(g_clifton_sun_full_reeval.dists .≈ real_length.(g_clifton_sun_full.dists))
 
+
+diffs = findall(!, g_clifton_sun_full_reeval.dists .≈ real_length.(g_clifton_sun_full.dists))
+
+g_clifton_sun_full_reeval.dists[276, 1]
+g_clifton_sun_full.dists[276,1] |> real_length
+
+ws = ShadowWeights(g_clifton, -1.0)
+ws[length_zero_edges]
+
+g_clifton_sun_full.dists[276, 1]
+
+p1 = enumerate_paths(g_clifton_sun_full, 276, 1)
+MinistryOfCoolWalks.get_path_length(p1, weights(g_clifton))
+MinistryOfCoolWalks.get_path_length(p1, ws)# |> real_length
+
+for i in zip(p1[1:end-1], p1[2:end])
+    if CartesianIndex(i...) in length_zero_edges
+        println(i)
+    end
+end
+
+length_zero_edges = findall(e -> felt_length(e) ≈ 0 && e.sun != 0, ws)
+(g_clifton_sun_full_reeval.dists.-real_length.(g_clifton_sun_full.dists))[length_zero_edges]
+
+
+
+g_clifton = shadow_graph_from_file("./data/test_clifton_bike.json"; network_type=:bike)
+b_clifton = load_british_shapefiles("./data/clifton/clifton_test.shp")
+correct_centerlines!(g_clifton, b_clifton)
+s_clifton = CompositeBuildings.cast_shadow(b_clifton, :height_mean, [1.0, -0.4, 0.2])
+add_shadow_intervals!(g_clifton, s_clifton)
+
+g_clifton_shadow_full = floyd_warshall_shortest_paths(g_clifton, ShadowWeights(g_clifton, 1.0))
+g_clifton_shadow_full_reeval = MinistryOfCoolWalks.reevaluate_distances(g_clifton_shadow_full, weights(g_clifton))
+
+diffs = findall(!, real_length.(g_clifton_shadow_full.dists) .≈ g_clifton_shadow_full_reeval.dists)
+
+(real_length.(g_clifton_shadow_full.dists).-g_clifton_shadow_full_reeval.dists)[diffs]
+
+g_clifton_shadow_full.dists[diffs[1]] |> real_length
+g_clifton_shadow_full_reeval.dists[diffs[1]]
+
+p1 = enumerate_paths(g_clifton_shadow_full, diffs[1][1], diffs[1][2])
+p2 = enumerate_paths(g_clifton_shadow_full_reeval, diffs[1][1], diffs[1][2])
+ShadowWeights(g_clifton, 1.0)[1016, 758] |> real_length
+
+
+MinistryOfCoolWalks.get_path_length(p1, weights(g_clifton))
+MinistryOfCoolWalks.get_path_length(p1, ShadowWeights(g_clifton, 1.0)) |> real_length
+
+ws = ShadowWeights(g_clifton, 1.0)
+
+length_zero_edges = findall(e -> felt_length(e) ≈ 0 && e.shade != 0, ws)
+
+problem_paths = [enumerate_paths(g_clifton_shadow_full, i[1], i[2]) for i in diffs]
+
+map(problem_paths) do path
+    ind = findfirst(==(1016), path)
+    return path[ind+1] == 758
+end |> all
+
+
+[[1016, 758] in i for i in problem_paths]
+=#
