@@ -91,6 +91,6 @@ include("RTreeBuilding.jl")
 export correct_centerlines!
 include("CenterlineCorrection.jl")
 
-export felt_length, real_length, ShadowWeights
+export felt_length, real_length, ShadowWeights, ShadowWeightsLight, reevaluate_distances
 include("Routing.jl")
 end

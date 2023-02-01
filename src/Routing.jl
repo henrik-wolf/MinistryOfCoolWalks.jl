@@ -91,12 +91,13 @@ Special care has to be taken when adding values which identify with either zero 
 we ignore the condition of the `a` fields having to be the same and return just the appropriate input.
 """
 function Base.:+(a::ShadowWeight, b::ShadowWeight)
-    fla = felt_length(a)
-    flb = felt_length(b)
-    fla == 0.0 && return b
-    flb == 0.0 && return a
-    fla == Inf && return a
-    flb == Inf && return b
+    # we use felt_length(zero) == 0 <--> real_length(zero) == 0
+    rla = real_length(a)
+    rlb = real_length(b)
+    rla == 0.0 && return b
+    rlb == 0.0 && return a
+    rla == Inf && return a
+    rlb == Inf && return b
     @assert a.a == b.a "cant add ShadowWeight s if a is not the same a.a=$(a.a), b.a=$(b.a)"
     return ShadowWeight(a.a, a.shade + b.shade, a.sun + b.sun)
 end
@@ -166,7 +167,126 @@ function Base.getindex(w::ShadowWeights, u::Integer, v::Integer)
     return ShadowWeight(w.a, shadow_length, abs(full_length - shadow_length))
 end
 
+#### Hereafter, we build a different approach, not using a custom real, but rather a more elaborate getindex method.
 
+"""
+
+    ShadowWeightsLight{T<:Integer,U<:Real} <: AbstractMatrix{U}
+
+AbstractMatrix type, usable in graph algorithms, alternative approach to using `ShadowWeights`.
+"""
+struct ShadowWeightsLight{T<:Integer,U<:Real} <: AbstractMatrix{U}
+    a::Float64
+    geom_weights::MetaGraphs.MetaWeights{T,U}
+    shadow_weights::MetaGraphs.MetaWeights{T,U}
+    function ShadowWeightsLight(a, geom_weights::I, shadow_weights::I) where {T<:Integer,U<:Real,I<:MetaGraphs.MetaWeights{T,U}}
+        if -1.0 < a < 1.0
+            return new{T,U}(a, geom_weights, shadow_weights)
+        else
+            error("a can only be in (-1, 1) (currently: $a)")
+        end
+    end
+end
+
+
+"""
+
+    ShadowWeightsLight(a, geom_weights::I, shadow_weights::I) where {T<:Integer,U<:Real,I<:MetaGraphs.MetaWeights{T,U}}
+
+Base constructor for `ShadowWeightsLight`. `a` has to be in `(-1.0, 1.0)`, otherwise an error will be thrown.
+`geom_weights` and `shadow_weights` are the full lengths of the edges and the length of these edges in shadow, respectively.
+Make sure that `all(shadow_weights .<= geom_weights) == true`, otherwise, the results might not be what you expect.
+
+    ShadowWeightsLight(g::AbstractMetaGraph, a; shadow_source=:shadowed_length)
+
+Constructs the `ShadowWeightsLight` from a `MetaGraph` and the `a` value. (See `getindex(m::ShadowWeightsLight, ...)` for an explanation of this parameter.)
+
+Assumes that `weightfield(g)` encodes the full length of each edge. Additionally, it is possible to set the field from which the length of the shadows
+will be extracted. The default value is `:shadowed_length`.
+"""
+function ShadowWeightsLight(g::AbstractMetaGraph, a; shadow_source=:shadowed_length)
+    full_weights = weights(g)
+    shadow_weights = @set full_weights.weightfield = shadow_source
+    ShadowWeightsLight(a, full_weights, shadow_weights)
+end
+
+Base.show(io::IO, x::ShadowWeightsLight) = print(io, "ShadowWeightsLight with a=$(x.a)")
+Base.show(io::IO, z::MIME"text/plain", x::ShadowWeightsLight) = show(io, x)
+
+"""
+
+    getindex(w::ShadowWeightsLight{T,U}, u::Integer, v::Integer)::U where {T<:Integer} where {U<:Real}
+
+Get the length of an edge from u to v in the `felt_length`, defined as:
+
+`(1 - w.a) * shadow_length + (1 + w.a) * sun_length`. `a` represents the preference for shadow or sun,
+where `a==0.0` signifies indifference, `a ∈ (0.0, 1.0)` favours shaded edges, and `a ∈ (-1.0, 0.0)` favours sunny edges.
+"""
+function Base.getindex(w::ShadowWeightsLight{T,U}, u::Integer, v::Integer)::U where {T<:Integer} where {U<:Real}
+    shadow_length = w.shadow_weights[u, v]
+    sun_length = abs(w.geom_weights[u, v] - shadow_length)
+
+    weight = (1 - w.a) * shadow_length + (1 + w.a) * sun_length
+    return U(weight)
+end
+
+
+"""
+
+    size(x::ShadowWeightsLight)
+
+size of `ShadowWeightsLight` is size of geometry weights contained.
+"""
+Base.size(x::ShadowWeightsLight) = MetaGraphs.size(x.geom_weights)
+
+"""
+
+    reevaluate_distances(state, weights)
+
+reevaluates the shortest paths in state with the given weight matrix. This function is neccessary 
+since the approach with `ShadowWeightsLight` weights only returns the felt lengths. To make these values comparable,
+we need the path lengths under the same weight matrix. This algorithm works only for `FloydWarshallState`s, as it uses
+a modified floyd warshall algorithm to do so.
+"""
+function reevaluate_distances(state, distmx)
+    T = eltype(distmx)
+    U = eltype(state.dists)
+    nvg = size(state.dists)[1]
+    # if we do checkbounds here, we can use @inbounds later
+    checkbounds(distmx, Base.OneTo(nvg), Base.OneTo(nvg))
+    checkbounds(state.dists, Base.OneTo(nvg), Base.OneTo(nvg))
+    checkbounds(state.parents, Base.OneTo(nvg), Base.OneTo(nvg))
+
+    dists = fill(typemax(T), (Int(nvg), Int(nvg)))
+
+    for v in 1:nvg
+        dists[v, v] = zero(T)
+    end
+    for e in (i for i in CartesianIndices(state.parents) if state.parents[i] == i[1])
+        d = distmx[e]
+        dists[e] = min(d, dists[e])
+    end
+    for pivot in 1:nvg
+        # Relax dists[u, v] = min(dists[u, v], dists[u, pivot]+dists[pivot, v]) for all u, v
+        for v in 1:nvg
+            d_old = state.dists[pivot, v]
+            d = dists[pivot, v]
+            d == typemax(T) && continue
+            for u in 1:nvg
+                ans = (dists[u, pivot] == typemax(T) ? typemax(T) : dists[u, pivot] + d)
+                ans_old = (state.dists[u, pivot] == typemax(U) ? typemax(U) : state.dists[u, pivot] + d_old)
+                if ans_old == state.dists[u, v] && ans != typemax(T)
+                    dists[u, v] = ans
+                end
+            end
+        end
+    end
+    fws = Graphs.FloydWarshallState(dists, state.parents)
+    return fws
+end
+
+
+#### this is testing stuff
 """
 
     get_path_length(path, weights)
@@ -177,11 +297,11 @@ get_path_length(path, weights) = length(path) > 0 ? mapreduce((s, d) -> weights[
 
 """
 
-    reevaluate_distances(state, weights)
+    reevaluate_distances_slow(state, weights)
 
 recalculates the lengths of the paths encoded in `state` using the supplied `weights` matrix. (Not exported, mainly used in Testing, since very slow.)
 """
-function reevaluate_distances(state, weights)
+function reevaluate_distances_slow(state, weights)
     new_dists = similar(state.dists, eltype(weights))
     new_dists .= typemax(eltype(weights))
     @showprogress 1 "reevaluating distances" for start_from in enumerate_paths(state)
@@ -257,69 +377,4 @@ function reevaluate_distances_iter(state, weights)
 	end
 	return Graphs.FloydWarshallState(new_dists, state.parents)
 end
-
-function sp_reeval(state, distmx)
-	T = eltype(distmx)
-	U = eltype(state.dists)
-    nvg = size(state.dists)[1]
-    # if we do checkbounds here, we can use @inbounds later
-    checkbounds(distmx, Base.OneTo(nvg), Base.OneTo(nvg))
-    checkbounds(state.dists, Base.OneTo(nvg), Base.OneTo(nvg))
-    checkbounds(state.parents, Base.OneTo(nvg), Base.OneTo(nvg))
-
-    dists = fill(typemax(T), (Int(nvg), Int(nvg)))
-
-    for v in 1:nvg
-        dists[v, v] = zero(T)
-    end
-    for e in (i for i in CartesianIndices(state.parents) if state.parents[i] == i[1])
-        d = distmx[e]
-        dists[e] = min(d, dists[e])
-    end
-    for pivot in 1:nvg
-        # Relax dists[u, v] = min(dists[u, v], dists[u, pivot]+dists[pivot, v]) for all u, v
-        for v in 1:nvg
-			d_old = state.dists[pivot, v]
-            d = dists[pivot, v]
-            d == typemax(T) && continue
-            for u in 1:nvg
-                ans = (dists[u, pivot] == typemax(T) ? typemax(T) : dists[u, pivot] + d)
-				ans_old = (state.dists[u, pivot] == typemax(U) ? typemax(U) : state.dists[u, pivot] + d_old)
-                if ans_old == state.dists[u, v] && ans != typemax(T)
-                    dists[u, v] = ans
-                end
-            end
-        end
-    end
-    fws = Graphs.FloydWarshallState(dists, state.parents)
-    return fws
-end
-=#
-
-#=
-begin
-	struct ShadowWeights{T <: Integer,U <: Real} <: AbstractMatrix{U}
-	    a::Float64
-		geom_weights::MetaGraphs.MetaWeights{T, U}
-		shadow_weights::MetaGraphs.MetaWeights{T, U}
-	end
-	function ShadowWeights(g, a)
-		gw = weights(g)
-		sw = @set gw.weightfield = :shadowed_length
-		return ShadowWeights(a, gw, sw)
-	end
-	Base.show(io::IO, x::ShadowWeights) = print(io, "shadowweight")
-	Base.show(io::IO, z::MIME"text/plain", x::ShadowWeights) = show(io, x)
-end
-
-function Base.getindex(w::ShadowWeights{T,U}, u::Integer, v::Integer)::U where T <: Integer where U <: Real
-	shadow_length = w.shadow_weights[u, v]
-	sun_length = abs(w.geom_weights[u, v] - shadow_length)
-
-	weight = (1-w.a) * shadow_length + (w.a) * sun_length
-
-    return U(2 * weight)
-end
-
-Base.size(x::ShadowWeights) = MetaGraphs.size(x.geom_weights)
 =#
