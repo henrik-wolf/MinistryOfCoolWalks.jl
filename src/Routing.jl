@@ -3,22 +3,28 @@
     ShadowWeight(a::Float64, shade::Float64, sun::Float64) <: Real
 
 Typ representing the weight on one edge.
-- `a` represents the preference for shadow or sun, where `a==0.0` signifies indifference, `a ∈ (0.0, 1.0]` favours shaded edges,
-and `a ∈ [-1.0, 0.0)` favours sunny edges. Value must be in `[-1.0, 1.0]`, otherwise, an Error is thrown.
+- `a` represents the preference for shadow or sun, where `a==0.0` signifies indifference, `a ∈ (0.0, 1.0)` favours shaded edges,
+and `a ∈ (-1.0, 0.0)` favours sunny edges. Value must be in `(-1.0, 1.0)`, otherwise, an Error is thrown.
 - `shade` represents the (real world) length of the edge in shade. Has to be non-negative, otherwise, an Error is thrown.
 - `sun` represents the (real world) length of the edge in the sun. Has to be non-negative, otherwise, an Error is thrown.
+- if shade or sun is `Inf`, the other value has to be `Inf` as well, otherwise, an error is thrown.
 This also means, that `shade+sun=real_world_street_length`.
 """
 struct ShadowWeight <: Real
-    # TODO: Is it dodgy to put a Float64 Value into the type to get rid of all problems where a is not equal?
-    # TODO: Or we just allow values of a in (-1.0, 1.0)?
     a::Float64
     shade::Float64
     sun::Float64
-    ShadowWeight(a, sun, shade) =
-        -1.0 <= a <= 1.0 && 0.0 <= sun && 0.0 <= shade ?
-        new(a, sun, shade) :
-        error("a can only be in [-1, 1] (currently: $a), sun and shade can not be negative (currently $sun and $shade)")
+    function ShadowWeight(a, sun, shade)
+        if -1.0 < a < 1.0
+            if 0.0 <= sun < Inf && 0.0 <= shade < Inf || sun == shade == Inf
+                return new(a, sun, shade)
+            else
+                error("shade and sun have to be non negative and finite or both Inf. (currently $shade and $sun)")
+            end
+        else
+            error("a can only be in (-1, 1) (currently: $a)")
+        end
+    end
 end
 
 """
@@ -54,22 +60,9 @@ real_length(w::ShadowWeight) = w.sun + w.shade
 
     felt_length(w::ShadowWeight)
 
-returns the felt length of a `ShadowWeight`. It is defined as:
-- `(1 - a) * shade + (1 + a) * sun` for `a ∈ (-1.0, 1.0)`
-- `2 * sun` for `a==1.0`
-- `2 * shade` for `a==-1.0`
-This added complexity is needed, to prevent some edgecases in the comparison to values which identify to infinity.
+returns the felt length of a `ShadowWeight`. It is defined as: `(1 - a) * shade + (1 + a) * sun`
 """
-function felt_length(w::ShadowWeight)
-    b = w.a + 1.0
-    if 0.0 < b < 2.0
-        return (2.0 - b) * w.shade + b * w.sun
-    elseif b == 0.0
-        return 2.0 * w.shade
-    else
-        return 2.0 * w.sun
-    end
-end
+felt_length(w::ShadowWeight) = (1 - w.a) * w.shade + (1 + w.a) * w.sun
 
 """
 
@@ -96,17 +89,14 @@ with the same `a` value and the sum of the `sun` and `shadow` fields of both `Sh
 
 Special care has to be taken when adding values which identify with either zero or infinity. In this case,
 we ignore the condition of the `a` fields having to be the same and return just the appropriate input.
-
-This does give problematic results for the extreme cases of `a==1.0` and `a==-1.0`, since we might drop needed length
-in either the shade or the sun when we are currently only "feeling" the oposite... Not sure how we might be able to
-remedy this problem... (maybe add a as type parameter for the weights?)
 """
 function Base.:+(a::ShadowWeight, b::ShadowWeight)
-    # TODO: FIX THIS IN ARCHITECHTURE, NOT IN IF CASES!
-    felt_length(a) == 0.0 && real_length(a) == 0 && return b
-    felt_length(b) == 0.0 && real_length(b) == 0 && return a
-    felt_length(a) == Inf && return a
-    felt_length(b) == Inf && return b
+    fla = felt_length(a)
+    flb = felt_length(b)
+    fla == 0.0 && return b
+    flb == 0.0 && return a
+    fla == Inf && return a
+    flb == Inf && return b
     @assert a.a == b.a "cant add ShadowWeight s if a is not the same a.a=$(a.a), b.a=$(b.a)"
     return ShadowWeight(a.a, a.shade + b.shade, a.sun + b.sun)
 end
@@ -124,10 +114,10 @@ struct ShadowWeights{T<:Integer,U<:Real} <: AbstractMatrix{ShadowWeight}
     shadow_weights::MetaGraphs.MetaWeights{T,U}
 
     function ShadowWeights(a, full_weights::I, shadow_weights::I) where {T<:Integer,U<:Real,I<:MetaGraphs.MetaWeights{T,U}}
-        if -1.0 <= a <= 1.0
+        if -1.0 < a < 1.0
             return new{T,U}(a, full_weights, shadow_weights)
         else
-            error("a can only be in [-1, 1] (currently: $a)")
+            error("a can only be in (-1, 1) (currently: $a)")
         end
     end
 end
@@ -137,15 +127,9 @@ end
 
     ShadowWeights(a, full_weights::I, shadow_weights::I) where {T<:Integer,U<:Real,I<:MetaGraphs.MetaWeights{T,U}}
 
-Base constructor for `ShadowWeights`. `a` has to be in `[-1.0, 1.0]`, otherwise an error will be thrown.
+Base constructor for `ShadowWeights`. `a` has to be in `(-1.0, 1.0)`, otherwise an error will be thrown.
 `full_weights` and `shadow_weights` are the full lengths of the edges and the length of these edges in shadow, respectively.
 Make sure that `all(shadow_weights .<= full_weights) == true`, otherwise, the results might not be what you expect.
-
-If there exists at least one edge/street either fully in the sun or fully in the shade, the resulting `real_length`s at `a==-1.0` and `a==1.0` might not
-be the same as the ones calculated by adding every `full_length` along this path, since, adding only looks at `felt_length`, and will drop everything
-where this value is zero instead of adding the needed parts of the real lengths.
-
-A fix for this behaviour is to not use values of exactly `1.0 and -1.0`, but rather to think about `lim a -> 1.0` and `lim a -> -1.0`.
 
     ShadowWeights(g::AbstractMetaGraph, a; shadow_source=:shadowed_length)
 

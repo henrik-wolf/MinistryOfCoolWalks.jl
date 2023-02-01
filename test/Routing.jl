@@ -3,13 +3,22 @@ import MinistryOfCoolWalks: ShadowWeight
 @testset "Routing.jl" begin
     @testset "creating ShadowWeight" begin
         @test ShadowWeight(0.0, 1.3, 0) isa ShadowWeight
-        @test ShadowWeight(1.0, 1.3, 5.9) isa ShadowWeight
-        @test ShadowWeight(-1, 0.0, 5.9) isa ShadowWeight
+        @test ShadowWeight(0.9, 1.3, 5.9) isa ShadowWeight
+        @test ShadowWeight(-0.64, 0.0, 5.9) isa ShadowWeight
+        @test ShadowWeight(0.0, Inf, Inf) isa ShadowWeight
+        @test ShadowWeight(0.3, Inf, Inf) isa ShadowWeight
+        @test ShadowWeight(-0.6, Inf, Inf) isa ShadowWeight
+
 
         @test_throws ErrorException ShadowWeight(4.5, 1.3, 5.9)
-        @test_throws ErrorException ShadowWeight(-4, 1.3, 5.9)
+        @test_throws ErrorException ShadowWeight(4.5, 1.3, 5.9)
+        @test_throws ErrorException ShadowWeight(4.5, Inf, Inf)
+        @test_throws ErrorException ShadowWeight(-1, 1.3, 5.9)
+        @test_throws ErrorException ShadowWeight(1, 1.3, 5.9)
         @test_throws ErrorException ShadowWeight(0.3, 0.0, -5.9)
         @test_throws ErrorException ShadowWeight(-0.4, -1.3, 5.9)
+        @test_throws ErrorException ShadowWeight(0.3, Inf, 5.9)
+        @test_throws ErrorException ShadowWeight(-0.4, 4, Inf)
     end
 
     @testset "zero and inf of ShadowWeight" begin
@@ -22,65 +31,63 @@ import MinistryOfCoolWalks: ShadowWeight
 
     @testset "real_length" begin
         infinity = typemax(ShadowWeight)
-        i1 = ShadowWeight(0.5, Inf, 5.0)
-        i2 = ShadowWeight(1.0, 4.5, Inf)
-        i3 = ShadowWeight(-1, Inf, 9.5)
-        i4 = ShadowWeight(-0.5, Inf, Inf)
-        i5 = ShadowWeight(1.0, Inf, 10.4)
+        i1 = ShadowWeight(0.5, Inf, Inf)
+        i2 = ShadowWeight(-0.6, Inf, Inf)
 
-        infs = [i1, i2, i3, i4, i5, infinity]
+        infs = [i1, i2, infinity]
         for i in infs
             @test real_length(i) == Inf
         end
 
         typezero = zero(ShadowWeight)
         z1 = ShadowWeight(0.5, 0.0, 0.0)
+        z2 = ShadowWeight(-0.6, 0.0, 0.0)
         @test real_length(typezero) == 0.0
         @test real_length(z1) == 0.0
+        @test real_length(z2) == 0.0
 
-        s3 = ShadowWeight(0.5, 4.6, 10.0)
-        s4 = ShadowWeight(-0.5, 2.4, 1.6)
+        s1 = ShadowWeight(0.5, 4.6, 10.0)
+        s2 = ShadowWeight(-0.5, 2.4, 1.6)
 
-        @test real_length(s3) == 14.6
-        @test real_length(s4) == 4.0
+        @test real_length(s1) == 14.6
+        @test real_length(s2) == 4.0
 
     end
 
     @testset "felt_lengths" begin
         # things that should be infinity
-        i1 = ShadowWeight(0.02, Inf, 5.0)
-        i2 = ShadowWeight(1.0, 4.5, Inf)
-        i3 = ShadowWeight(-1, Inf, 9.5)
-        i4 = ShadowWeight(-0.5, Inf, Inf)
+        infinity = typemax(ShadowWeight)
+        i1 = ShadowWeight(0.5, Inf, Inf)
+        i2 = ShadowWeight(-0.6, Inf, Inf)
 
-        for i in [i1, i2, i3, i4]
+
+        for i in [i1, i2, infinity]
             @test felt_length(i) == Inf
         end
 
-        # things that should be finite, even though there is infinity in there
-        @test ShadowWeight(1.0, Inf, 10.4) |> felt_length == 20.8
-        @test ShadowWeight(-1.0, 11.5, Inf) |> felt_length == 23.0
-
         #things that should be zero
+        typezero = zero(ShadowWeight)
         z1 = ShadowWeight(0.5, 0.0, 0.0)
-        z2 = ShadowWeight(1.0, 100.3, 0.0)
-        z3 = ShadowWeight(1.0, Inf, 0.0)
-        z4 = ShadowWeight(-1.0, 0.0, 51.5)
-        z5 = ShadowWeight(-1.0, 0.0, Inf)
-        for z in [z1, z2, z3, z4, z5]
+        z2 = ShadowWeight(-0.6, 0.0, 0.0)
+        for z in [z1, z2, typezero]
             @test felt_length(z) == 0.0
         end
+
+        # things that should be inbetween
+        s1 = ShadowWeight(0.5, 4.6, 10.0)
+        s2 = ShadowWeight(-0.5, 3.0, 2.6)
+
+        @test felt_length(s1) == 17.3
+        @test felt_length(s2) == 5.8
     end
 
     @testset "comparison" begin
+        # things that should be infinity
         infinity = typemax(ShadowWeight)
-        # things that should be equivalent to infinity
-        i1 = ShadowWeight(0.5, Inf, 5.0)
-        i2 = ShadowWeight(1.0, 4.5, Inf)
-        i3 = ShadowWeight(-1, Inf, 9.5)
-        i4 = ShadowWeight(-0.5, Inf, Inf)
+        i1 = ShadowWeight(0.5, Inf, Inf)
+        i2 = ShadowWeight(-0.6, Inf, Inf)
 
-        infs = [i1, i2, i3, i4, infinity]
+        infs = [i1, i2, infinity]
         for i in infs
             @test !(i < infinity)
             @test !(i > infinity)
@@ -89,15 +96,12 @@ import MinistryOfCoolWalks: ShadowWeight
             @test i == infinity
         end
 
+        #things that should be zero
         typezero = zero(ShadowWeight)
-        # things that should be equivalent to typezero
         z1 = ShadowWeight(0.5, 0.0, 0.0)
-        z2 = ShadowWeight(1.0, 100.3, 0.0)
-        z3 = ShadowWeight(1.0, Inf, 0.0)
-        z4 = ShadowWeight(-1.0, 0.0, 51.5)
-        z5 = ShadowWeight(-1.0, 0.0, Inf)
+        z2 = ShadowWeight(-0.6, 0.0, 0.0)
 
-        typezeros = [z1, z2, z3, z4, z5, typezero]
+        typezeros = [z1, z2, typezero]
         for z in typezeros
             @test !(z < typezero)
             @test !(z > typezero)
@@ -108,17 +112,11 @@ import MinistryOfCoolWalks: ShadowWeight
 
 
         # things that should be larger than zero (and equivalents) and less than infinity (and their equivalents)
-        s1 = ShadowWeight(1.0, Inf, 10.4)
-        s2 = ShadowWeight(-1.0, 11.5, Inf)
+        s1 = ShadowWeight(0.0, 3.5, 12.0)
+        s2 = ShadowWeight(0.5, 4.6, 10.0)
+        s3 = ShadowWeight(-0.5, 2.4, 1.6)
 
-        s3 = ShadowWeight(0.0, 3.5, 12.0)
-        s4 = ShadowWeight(0.5, 4.6, 10.0)
-        s5 = ShadowWeight(-0.5, 2.4, 1.6)
-
-        s6 = ShadowWeight(1.0, 13.2, 10.0)
-        s7 = ShadowWeight(-1.0, 5.8, 9.2)
-
-        smalls = [s1, s2, s3, s4, s5, s6, s7]
+        smalls = [s1, s2, s3]
         for i in infs
             for s in smalls
                 @test s < i
@@ -134,67 +132,54 @@ import MinistryOfCoolWalks: ShadowWeight
     end
 
     @testset "addition" begin
+        # things that should be infinity
+        infinity = typemax(ShadowWeight)
+        i1 = ShadowWeight(0.5, Inf, Inf)
+        i2 = ShadowWeight(-0.6, Inf, Inf)
+        infs = [i1, i2, infinity]
+
+        #things that should be zero
         typezero = zero(ShadowWeight)
         z1 = ShadowWeight(0.5, 0.0, 0.0)
-        z2 = ShadowWeight(1.0, 100.3, 0.0)
-        z3 = ShadowWeight(1.0, Inf, 0.0)
-        z4 = ShadowWeight(-1.0, 0.0, 51.5)
-        z5 = ShadowWeight(-1.0, 0.0, Inf)
-        typezeros = [z1, z2, z3, z4, z5, typezero]
+        z2 = ShadowWeight(-0.6, 0.0, 0.0)
+        typezeros = [z1, z2, typezero]
 
-        infinity = typemax(ShadowWeight)
-        i1 = ShadowWeight(0.5, Inf, 5.0)
-        i2 = ShadowWeight(1.0, 4.5, Inf)
-        i3 = ShadowWeight(-1, Inf, 9.5)
-        i4 = ShadowWeight(-0.5, Inf, Inf)
-        infs = [i1, i2, i3, i4, infinity]
+        # things that should be larger than zero (and equivalents) and less than infinity (and their equivalents)
+        s1 = ShadowWeight(0.0, 3.5, 12.0)
+        s2 = ShadowWeight(0.0, 1.3, 2.9)
 
-        s1 = ShadowWeight(1.0, Inf, 10.4)
-        s2 = ShadowWeight(-1.0, 11.5, Inf)
+        s3 = ShadowWeight(0.5, 0.5, 1.3)
+        s4 = ShadowWeight(0.5, 4.6, 10.0)
 
-        s3 = ShadowWeight(0.0, 3.5, 12.0)
-        s4 = ShadowWeight(0.0, 1.5, 10.3)
+        s5 = ShadowWeight(-0.5, 2.4, 1.6)
+        s6 = ShadowWeight(-0.5, 2.1, 0.3)
 
-        s5 = ShadowWeight(0.5, 4.6, 10.0)
-        s6 = ShadowWeight(-0.5, 2.4, 1.6)
-
-        s7 = ShadowWeight(1.0, 13.2, 10.0)
-        s8 = ShadowWeight(-1.0, 5.8, 9.2)
-
-        smalls = [s1, s2, s3, s4, s5, s6, s7, s8]
+        smalls = [s1, s2, s3, s4, s5, s6]
 
         # adding zeros
-        for s in smalls, z in [typezero, z1]
+        for s in smalls, z in typezeros
             @test s + z == s
+            @test real_length(s + z) == real_length(s)
         end
-        for s in [s1, s7], z in [z2, z3]
-            @test s + z == s
-            @test real_length(s + z) >= real_length(s)
-        end
-        for s in [s2, s8], z in [z4, z5]
-            @test s + z == s
-            @test real_length(s + z) >= real_length(s)
-        end
-        for (s, z) in zip([s1, s7, s2, s8, s3, s4, s3, s4, s5, s6, s5, s6], [z4, z5, z2, z3, z4, z5, z2, z3, z2, z4, z3, z5])
-            @test_throws AssertionError s + z
-        end
-
-        # adding infinities
         for s in smalls, i in infs
+            @test s + i == i
             @test s + i == infinity
+            @test real_length(s + i) == real_length(i)
         end
 
         # adding finite
-        @test s1 + s7 == ShadowWeight(1.0, Inf, 20.4)
-        @test s2 + s8 == ShadowWeight(-1.0, 17.3, Inf)
-        @test s3 + s4 == ShadowWeight(0.0, 5.0, 22.3)
-        @test_throws AssertionError s5 + s6
+        @test s1 + s2 == ShadowWeight(0.0, 4.8, 14.9)
+        @test s3 + s4 == ShadowWeight(0.5, 5.1, 11.3)
+        @test s5 + s6 == ShadowWeight(-0.5, 4.5, 1.9)
+        @test_throws AssertionError s1 + s3
     end
 
     @testset "ShadowWeights" begin
         g = MetaDiGraph(random_regular_digraph(100, 4))
         @test ShadowWeights(0.4, weights(g), weights(g)) isa ShadowWeights
         @test ShadowWeights(g, -0.6) isa ShadowWeights
+        @test_throws ErrorException ShadowWeights(1.0, weights(g), weights(g))
+        @test_throws ErrorException ShadowWeights(g, -1.0)
         @test_throws ErrorException ShadowWeights(2.0, weights(g), weights(g))
         @test_throws ErrorException ShadowWeights(g, -3)
 
@@ -231,16 +216,6 @@ import MinistryOfCoolWalks: ShadowWeight
         @test all(g2_shadow_skewed_reeval.dists .≈ real_length.(g2_shadow_skewed.dists))
         @test all(g2_sun_skewed_reeval.dists .≈ real_length.(g2_sun_skewed.dists))
 
-        g2_shadow_full = floyd_warshall_shortest_paths(g2, ShadowWeights(g2, 1.0))
-        g2_sun_full = floyd_warshall_shortest_paths(g2, ShadowWeights(g2, -1.0))
-        # check if this results in different routes
-        @test !all(g2_baseline.parents .== g2_shadow_full.parents)
-        @test !all(g2_baseline.parents .== g2_sun_full.parents)
-        g2_shadow_full_reeval = MinistryOfCoolWalks.reevaluate_distances(g2_shadow_full, weights(g2))
-        g2_sun_full_reeval = MinistryOfCoolWalks.reevaluate_distances(g2_sun_full, weights(g2))
-        # check if the reevaluated routes are as long as the real length
-        @test all(g2_shadow_full_reeval.dists .≈ real_length.(g2_shadow_full.dists))
-        @test all(g2_sun_full_reeval.dists .≈ real_length.(g2_sun_full.dists))
 
         ### KARATE GRAPH WITH SOME UNREACHABLES ###
         g = MetaDiGraph(smallgraph(:karate), :geom_length, 0.0)
@@ -268,16 +243,6 @@ import MinistryOfCoolWalks: ShadowWeight
         @test all(g_shadow_skewed_reeval.dists .≈ real_length.(g_shadow_skewed.dists))
         @test all(g_sun_skewed_reeval.dists .≈ real_length.(g_sun_skewed.dists))
 
-        g_shadow_full = floyd_warshall_shortest_paths(g, ShadowWeights(g, 1.0))
-        g_sun_full = floyd_warshall_shortest_paths(g, ShadowWeights(g, -1.0))
-        # check if this results in different routes
-        @test !all(g_baseline.parents .== g_shadow_full.parents)
-        @test !all(g_baseline.parents .== g_sun_full.parents)
-        g_shadow_full_reeval = MinistryOfCoolWalks.reevaluate_distances(g_shadow_full, weights(g))
-        g_sun_full_reeval = MinistryOfCoolWalks.reevaluate_distances(g_sun_full, weights(g))
-        # check if the reevaluated routes are as long as the real length
-        @test all(g_shadow_full_reeval.dists .≈ real_length.(g_shadow_full.dists))
-        @test all(g_sun_full_reeval.dists .≈ real_length.(g_sun_full.dists))
 
         #### CLIFTON WITH SHADOWS ####
         g_clifton = shadow_graph_from_file("./data/test_clifton_bike.json"; network_type=:bike)
@@ -303,17 +268,6 @@ import MinistryOfCoolWalks: ShadowWeight
         # check if the reevaluated routes are as long as the real length
         @test all(g_clifton_shadow_skewed_reeval.dists .≈ real_length.(g_clifton_shadow_skewed.dists))
         @test all(g_clifton_sun_skewed_reeval.dists .≈ real_length.(g_clifton_sun_skewed.dists))
-
-        g_clifton_shadow_full = floyd_warshall_shortest_paths(g_clifton, ShadowWeights(g_clifton, 1.0))
-        g_clifton_sun_full = floyd_warshall_shortest_paths(g_clifton, ShadowWeights(g_clifton, -1.0))
-        # check if this results in different routes
-        @test !all(g_clifton_baseline.parents .== g_clifton_shadow_full.parents)
-        @test !all(g_clifton_baseline.parents .== g_clifton_sun_full.parents)
-        g_clifton_shadow_full_reeval = MinistryOfCoolWalks.reevaluate_distances(g_clifton_shadow_full, weights(g_clifton))
-        g_clifton_sun_full_reeval = MinistryOfCoolWalks.reevaluate_distances(g_clifton_sun_full, weights(g_clifton))
-        # check if the reevaluated routes are as long as the real length
-        @test_skip all(g_clifton_shadow_full_reeval.dists .≈ real_length.(g_clifton_shadow_full.dists))
-        @test_skip all(g_clifton_sun_full_reeval.dists .≈ real_length.(g_clifton_sun_full.dists))
     end
 end
 
