@@ -25,7 +25,8 @@ Applying this constraint can be argued in multiple ways: (here in German. TODO: 
 3. Mathematisch: für kürzesten pfad brauche ich die beiden funktionen (min, +), und + muss ein nullelement haben. Wenn ich -1 und 1 zulasse, dann gibt es aber für diese werte sehr viele nullelemente für die addition (unter der gefühlten länge), was erstmal kein problem ist, aber, wenn ich dann die reale länge ausrechne, dann sind die halt nicht mehr alle nullelemente. Und dann ist es wieder abhängig vom algorithmus, wie oft ich (gefühlte) nullen addiere, was ich für eine reale länge bekomme.
 Und die dinge gehen alle weg, wenn ich einfach a in (-1.0, 1.0) fordere.
 
-
+## ShadowWeightsLight
+faster, but less flexible version of a custom weight matrix. Used in the same way as `ShadowWeights`, but the resulting `PathState` only gives the distances in felt lengths. To get the lengths in shadow an in the sun, we need to `reevaluate_distances` with a user supplied weight matrix. (Usually `weights(g)`) will work here. This gives the lengths of the paths in real world lengths. If we need to calculate the distances in shade and sun, we can either reevaluate the distances at a different values of a and solve the different felt weights for shade and sun, or we simply reevaluate the distances twice, once with a weightmatrix where only the shadows are weights, and once where only the sunny parts are weights.
 
 ## API
 
