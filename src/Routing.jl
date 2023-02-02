@@ -247,6 +247,11 @@ reevaluates the shortest paths in state with the given weight matrix. This funct
 since the approach with `ShadowWeightsLight` weights only returns the felt lengths. To make these values comparable,
 we need the path lengths under the same weight matrix. This algorithm works only for `FloydWarshallState`s, as it uses
 a modified floyd warshall algorithm to do so.
+
+Please note that the results from this algorithm might vary from the results which can be obtained from other implementations
+of this reevaluation (mainly `reevaluate_distances_slow`), if there exist multiple shortest paths in the felt measure.
+In this, faster implementation, the one that ends up getting picked for the real length depends on the order in which
+the nodes are checked. But the routing output does so as well, so on average, we should be fine.
 """
 function reevaluate_distances(state, distmx)
     T = eltype(distmx)
@@ -275,8 +280,16 @@ function reevaluate_distances(state, distmx)
             for u in 1:nvg
                 ans = (dists[u, pivot] == typemax(T) ? typemax(T) : dists[u, pivot] + d)
                 ans_old = (state.dists[u, pivot] == typemax(U) ? typemax(U) : state.dists[u, pivot] + d_old)
+                if v == 1 && u == 26
+                    @show ans
+                    @show ans_old
+                end
                 if ans_old == state.dists[u, v] && ans != typemax(T)
                     dists[u, v] = ans
+                    if v == 1 && u == 26
+                        @show pivot
+                        @show "updating"
+                    end
                 end
             end
         end
