@@ -280,16 +280,8 @@ function reevaluate_distances(state, distmx)
             for u in 1:nvg
                 ans = (dists[u, pivot] == typemax(T) ? typemax(T) : dists[u, pivot] + d)
                 ans_old = (state.dists[u, pivot] == typemax(U) ? typemax(U) : state.dists[u, pivot] + d_old)
-                if v == 1 && u == 26
-                    @show ans
-                    @show ans_old
-                end
                 if ans_old == state.dists[u, v] && ans != typemax(T)
                     dists[u, v] = ans
-                    if v == 1 && u == 26
-                        @show pivot
-                        @show "updating"
-                    end
                 end
             end
         end
