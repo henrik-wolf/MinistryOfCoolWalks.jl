@@ -194,16 +194,19 @@ end
 
 """
 
-    add_shadow_intervals!(g, shadows)
+    add_shadow_intervals!(g, shadows; clear_old_shadows=false)
 
 adds the intersection of the polygons in dataframe `shadows` with metadata `"center_lon"` and `"center_lat"` and the geometry in
 the edgeprop `:edgegeom` of graph `g` to `g`. This operation can be repeated on the same graph with various shadows.
+
+If `clear_old_shadows` is true, all possible, preexisting effects of previous executions of this function are reset. This way, a once loaded
+graph can be reused for all experiments.
 
 After this operation, all non-helper edges will have the additional property of ':shadowed_length'. This value is zero, if there is
 no shadow cast on the edge. If there is a shadow cast on the edge, the edge will have an additional property, ':shadowgeom', representing
 the geometry of the street in the shadow.
 """
-function add_shadow_intervals!(g, shadows)
+function add_shadow_intervals!(g, shadows; clear_old_shadows=false)
     MIN_DIST = 1e-4  # TODO: find out what a reasonable value would be for this.
 
     # project all stuff into local system
@@ -223,10 +226,11 @@ function add_shadow_intervals!(g, shadows)
     @showprogress 1 "adding shadows" for edge in edges(g)
         !has_prop(g, edge, :edgegeom) && continue  # skip helpers
 
-        if !has_prop(g, edge, :shadowed_length)
+        # add or reset all numeric props on edges which not yet have them
+        if !has_prop(g, edge, :shadowed_length) || clear_old_shadows
             set_prop!(g, edge, :shadowed_length, 0.0)
         end
-        if !has_prop(g, edge, :buffer_shadowed_length)
+        if !has_prop(g, edge, :buffer_shadowed_length) || clear_old_shadows
             set_prop!(g, edge, :buffer_shadowed_length, 0.0)
         end
 
@@ -254,15 +258,20 @@ function add_shadow_intervals!(g, shadows)
             full_shadow = ArchGDAL.union(full_shadow, part_in_shadow)::EdgeGeomType
         end
 
-        # skip all edges not in the shadow
-        total_shadow_part_lengths == 0.0 && continue
-
-        # add the relevant properties to the graph if not allready there
-        if !has_prop(g, edge, :shadowgeom)
-            set_prop!(g, edge, :shadowgeom, ArchGDAL.createlinestring())
+        # skip all edges not in shade
+        if total_shadow_part_lengths == 0.0
+            # remove shadowgeom on current edge not in shade and if clearing is active
+            if clear_old_shadows && has_prop(g, edge, :shadowgeom)
+                rem_prop!(g, edge, :shadowgeom)
+                rem_prop!(g, edge, :shadowgeom_segmented)
+            end
+            continue
         end
 
-
+        # add the relevant properties to the graph if not allready there (and reset the geometry if clearing is active)
+        if !has_prop(g, edge, :shadowgeom) || clear_old_shadows
+            set_prop!(g, edge, :shadowgeom, ArchGDAL.createlinestring())
+        end
 
         # update the relevant properties of the graph
         full_shadow_previous = get_prop(g, edge, :shadowgeom)
@@ -282,7 +291,8 @@ function add_shadow_intervals!(g, shadows)
         push!(df, Dict(
                 :edge => get_prop(g, edge, :osm_id),
                 :sl => get_prop(g, edge, :shadowed_length),
-                :fl => get_prop(g, edge, :full_length)
+                :fl => get_prop(g, edge, :full_length),
+                :g_edge => edge
             ); cols=:union)
     end
     #project all stuff back
