@@ -190,7 +190,7 @@ end
 
 """
 
-    correct_centerlines!(g, buildings, assumed_lane_width=3.5)
+    correct_centerlines!(g, buildings, assumed_lane_width=3.5, scale_factor=1.0)
 
 offsets the centerlines of streets (edges in `g`) stored in the edge prop `:edgegeom_base`, to the estimated edge of the street and stores the
 result in `:edgegeom`.
