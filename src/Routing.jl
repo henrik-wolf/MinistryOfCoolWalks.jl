@@ -9,15 +9,19 @@ and `a ∈ (-1.0, 0.0)` favours sunny edges. Value must be in `(-1.0, 1.0)`, oth
 - `sun` represents the (real world) length of the edge in the sun. Has to be non-negative, otherwise, an Error is thrown.
 - if shade or sun is `Inf`, the other value has to be `Inf` as well, otherwise, an error is thrown.
 This also means, that `shade+sun=real_world_street_length`.
+
+    unsafe_ShadowWeight(a, shade, sun)
+
+unsafe constructor for `ShadowWeight`, does not validate the inputs, used internally when we know that all conditions are fulfilled.
 """
 struct ShadowWeight <: Real
     a::Float64
     shade::Float64
     sun::Float64
-    function ShadowWeight(a, sun, shade)
+    function ShadowWeight(a, shade, sun)
         if -1.0 < a < 1.0
             if 0.0 <= sun < Inf && 0.0 <= shade < Inf || sun == shade == Inf
-                return new(a, sun, shade)
+                return unsafe_ShadowWeight(a, shade, sun)
             else
                 error("shade and sun have to be non negative and finite or both Inf. (currently $shade and $sun)")
             end
@@ -25,6 +29,7 @@ struct ShadowWeight <: Real
             error("a can only be in (-1, 1) (currently: $a)")
         end
     end
+    global unsafe_ShadowWeight(a, shade, sun) = new(a, shade, sun)
 end
 
 """
@@ -35,7 +40,7 @@ end
 returns the zero value associated with the `ShadowWeight` Real. Equivalent to `ShadowWeight(0.0, 0.0, 0.0)`.
 """
 Base.zero(x::ShadowWeight) = zero(typeof(x))
-Base.zero(::Type{ShadowWeight}) = ShadowWeight(0.0, 0.0, 0.0)
+Base.zero(::Type{ShadowWeight}) = unsafe_ShadowWeight(0.0, 0.0, 0.0)
 
 
 """
@@ -46,7 +51,7 @@ Base.zero(::Type{ShadowWeight}) = ShadowWeight(0.0, 0.0, 0.0)
 returns the maximum value associated with the `ShadowWeight` Real. Equivalent to `ShadowWeight(0.0, Inf, Inf)`
 """
 Base.typemax(x::ShadowWeight) = typemax(typeof(x))
-Base.typemax(::Type{ShadowWeight}) = ShadowWeight(0.0, Inf, Inf)
+Base.typemax(::Type{ShadowWeight}) = unsafe_ShadowWeight(0.0, Inf, Inf)
 
 """
 
@@ -86,20 +91,23 @@ Base.:<(a::ShadowWeight, b::ShadowWeight) = felt_length(a) < felt_length(b)
 
 Two general `ShadowWeight`s are addable, if their `a` fields match. The result is a new `ShadowWeight`
 with the same `a` value and the sum of the `sun` and `shadow` fields of both `ShadowWeights`.
+The return value is generated using `unsafe_ShadowWeight` due to performance considerations. Make sure
+that you only input valid `ShadowWeight`s.
 
 Special care has to be taken when adding values which identify with either zero or infinity. In this case,
 we ignore the condition of the `a` fields having to be the same and return just the appropriate input.
 """
 function Base.:+(a::ShadowWeight, b::ShadowWeight)
-    # we use felt_length(zero) == 0 <--> real_length(zero) == 0
-    rla = real_length(a)
-    rlb = real_length(b)
-    rla == 0.0 && return b
-    rlb == 0.0 && return a
-    rla == Inf && return a
-    rlb == Inf && return b
+    # for some reason, routing is a lot faster if we use felt_length (if you have any idea why, let me know...)
+    fla = felt_length(a)
+    flb = felt_length(b)
+    fla == 0.0 && return b
+    flb == 0.0 && return a
+    fla == Inf && return a
+    flb == Inf && return b
+    # this also takes some time, not sure if we want to leave it out though...
     @assert a.a == b.a "cant add ShadowWeight s if a is not the same a.a=$(a.a), b.a=$(b.a)"
-    return ShadowWeight(a.a, a.shade + b.shade, a.sun + b.sun)
+    return unsafe_ShadowWeight(a.a, a.shade + b.shade, a.sun + b.sun)
 end
 
 
@@ -115,10 +123,13 @@ struct ShadowWeights{T<:Integer,U<:Real} <: AbstractMatrix{ShadowWeight}
     shadow_weights::MetaGraphs.MetaWeights{T,U}
 
     function ShadowWeights(a, full_weights::I, shadow_weights::I) where {T<:Integer,U<:Real,I<:MetaGraphs.MetaWeights{T,U}}
-        if -1.0 < a < 1.0
+        max_U = typemax(U)
+        max_full = mapreduce(<(max_U), &, full_weights; init=true)
+        max_shade = mapreduce(<(max_U), &, shadow_weights; init=true)
+        if -1.0 < a < 1.0 && max_full && max_shade
             return new{T,U}(a, full_weights, shadow_weights)
         else
-            error("a can only be in (-1, 1) (currently: $a)")
+            error("a can only be in (-1, 1) (currently: $a), weights have to be less than typemax($U)")
         end
     end
 end
@@ -130,7 +141,8 @@ end
 
 Base constructor for `ShadowWeights`. `a` has to be in `(-1.0, 1.0)`, otherwise an error will be thrown.
 `full_weights` and `shadow_weights` are the full lengths of the edges and the length of these edges in shadow, respectively.
-Make sure that `all(shadow_weights .<= full_weights) == true`, otherwise, the results might not be what you expect.
+Make sure that `all(shadow_weights .<= full_weights`) == true` for all edges which exist, otherwise, the results might not be what you expect.
+Constructor checks that `maximum(shadow_weights)<typemax(U)` and `maximum(full_weights)<typemax(U)`. (TODO: Maybe there is a faster way of doing this?)
 
     ShadowWeights(g::AbstractMetaGraph, a; shadow_source=:shadowed_length)
 
@@ -160,11 +172,12 @@ Base.size(x::ShadowWeights) = size(x.full_weights)
 Get the `ShadowWeight` at index `u,v`. The length in the sun is calculated as `abs(full_length-shadow_length)`,
 to account for numerical deviations where the edge might be slightly shorter than the shadow covering it.
 If the length in the shade is systematically longer than the full edge, this will not Error, but fail silently.
+Since we check the maximum values on construction, we can use `unsafe_ShadowWeight` to create the return value.
 """
 function Base.getindex(w::ShadowWeights, u::Integer, v::Integer)
     full_length = w.full_weights[u, v]
     shadow_length = w.shadow_weights[u, v]
-    return ShadowWeight(w.a, shadow_length, abs(full_length - shadow_length))
+    return unsafe_ShadowWeight(w.a, shadow_length, abs(full_length - shadow_length))
 end
 
 #### Hereafter, we build a different approach, not using a custom real, but rather a more elaborate getindex method.
@@ -180,10 +193,13 @@ struct ShadowWeightsLight{T<:Integer,U<:Real} <: AbstractMatrix{U}
     geom_weights::MetaGraphs.MetaWeights{T,U}
     shadow_weights::MetaGraphs.MetaWeights{T,U}
     function ShadowWeightsLight(a, geom_weights::I, shadow_weights::I) where {T<:Integer,U<:Real,I<:MetaGraphs.MetaWeights{T,U}}
-        if -1.0 < a < 1.0
+        max_U = typemax(U)
+        max_full = mapreduce(<(max_U), &, geom_weights; init=true)
+        max_shade = mapreduce(<(max_U), &, shadow_weights; init=true)
+        if -1.0 < a < 1.0 && max_full && max_shade
             return new{T,U}(a, geom_weights, shadow_weights)
         else
-            error("a can only be in (-1, 1) (currently: $a)")
+            error("a can only be in (-1, 1) (currently: $a), weights have to be less than typemax($U)")
         end
     end
 end
@@ -196,6 +212,7 @@ end
 Base constructor for `ShadowWeightsLight`. `a` has to be in `(-1.0, 1.0)`, otherwise an error will be thrown.
 `geom_weights` and `shadow_weights` are the full lengths of the edges and the length of these edges in shadow, respectively.
 Make sure that `all(shadow_weights .<= geom_weights) == true`, otherwise, the results might not be what you expect.
+Constructor checks that `maximum(shadow_weights)<typemax(U)` and `maximum(full_weights)<typemax(U)`. (TODO: Maybe there is a faster way of doing this?)
 
     ShadowWeightsLight(g::AbstractMetaGraph, a; shadow_source=:shadowed_length)
 
