@@ -250,7 +250,7 @@ function add_shadow_intervals!(g, shadows; clear_old_shadows=false)
     shadow_tree = build_rtree(shadows.geometry)
 
     #return shadow_tree
-    @showprogress 1 "adding shadows" for edge in edges(g)#[Edge(7228, 1911)]#edges(g)
+    @showprogress 1 "adding shadows" for edge in edges(g)
         !has_prop(g, edge, :edgegeom) && continue  # skip helpers
 
         # add or reset all numeric props on edges which not yet have them
@@ -348,8 +348,8 @@ function check_shadow_angle_integrity(g, max_angle)
     else
         filter!(:all_less => !, df)
         @warn "$(nrow(df)) edges have angles larger than $max_angle. Returning problematic values."
-        return df
     end
+    return df
 end
 
 
