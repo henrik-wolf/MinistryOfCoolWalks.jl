@@ -71,4 +71,16 @@
             @test sl_after ≈ sl || sl_after <= sl  # might be slightly larger, due to numerics.
         end
     end
+
+    @testset "check_shadow_angle_integrity" begin
+        g = shadow_graph_from_file("./data/test_clifton_bike.json"; network_type=:bike)
+        b = load_british_shapefiles("./data/clifton/clifton_test.shp")
+        s = CompositeBuildings.cast_shadow(b, :height_mean, [1.0, -0.4, 0.2])
+        add_shadow_intervals!(g, s)
+
+        @test check_shadow_angle_integrity(g, 0.9π) isa Nothing
+
+        problems = check_shadow_angle_integrity(g, 0.1π)
+        @test nrow(problems) == 296
+    end
 end
