@@ -2,10 +2,11 @@
 
     combine_lines(a, b, min_dist)
 
-combines two lines a and b at the ends where they are closer than `min_dist` apart.
+combines two lines a and b at the ends where they are closer than `min_dist` apart. This assumes, that a and b are (much) longer
+than `min_dist`. If not, weird edge cases may arrise.
 
 If `a ⊂ b`, returns `b`, if `b ⊂ a` returns `a`. Otherwise, returns all nodes of `a`, concatenated with all nodes of `b`,
-which are further away from `a` than `min_dist`. If a and b for a circle, special care is taken to not mess up the order.
+which are further away from `a` than `min_dist`. If a and b form a circle, special care is taken to not mess up the order.
 """
 function combine_lines(a, b, min_dist)
     a_points2b = [ArchGDAL.distance(p, b) for p in getgeom(a)]
@@ -104,20 +105,23 @@ end
 
 """
 
-    rebuild_lines(line::ArchGDAL.IGeometry{ArchGDAL.wkbLineString}, min_dist)
-
-calculates the union of lines in a (multi) linestring, merging lines which are closer than `min_dist` to one another.
-This particular function just returns `line`, as a single line allready is the union
-
     rebuild_lines(lines::ArchGDAL.IGeometry{ArchGDAL.wkbMultiLineString}, min_dist)::EdgeGeomType
     rebuild_lines(lines, min_dist)::EdgeGeomType
+
+calculates the union of lines in a (multi) linestring, merging lines which are closer than `min_dist` to one another.
 
 We calculate the adjacency matrix of all lines, build a network with edges where the distance between edges `< min_dist`,
 calculate a dfs tree for each connected component and recursively combine the linestrings at the leafs with the linestrings
 one level up.
 """
-rebuild_lines(line::ArchGDAL.IGeometry{ArchGDAL.wkbLineString}, min_dist) = ArchGDAL.clone(line)
-rebuild_lines(lines::ArchGDAL.IGeometry{ArchGDAL.wkbMultiLineString}, min_dist)::EdgeGeomType = rebuild_lines(getgeom(lines), min_dist)
+function rebuild_lines(lines::ArchGDAL.IGeometry{ArchGDAL.wkbMultiLineString}, min_dist)::EdgeGeomType
+    if ngeom(lines) == 1
+        # this should clone the geometry
+        return getgeom(lines, 1)
+    else
+        return rebuild_lines(getgeom(lines), min_dist)
+    end
+end
 
 function rebuild_lines(lines, min_dist)::EdgeGeomType
     lines = collect(lines)  # make sure lines are indexable
@@ -192,6 +196,29 @@ function get_length_by_buffering(geom, buffer, points, edge)
     end
 end
 
+
+"""
+
+    join_shadow_without_union!(full_shadow, new_shadow::ArchGDAL.IGeometry{ArchGDAL.wkbLineString})
+    join_shadow_without_union!(full_shadow, new_shadow::ArchGDAL.IGeometry{ArchGDAL.wkbMultiLineString})
+
+adds `new_shadow` to `full_shadow`, skipping empty linestrings.
+"""
+function join_shadow_without_union!(full_shadow, new_shadow::ArchGDAL.IGeometry{ArchGDAL.wkbLineString})
+    if ngeom(new_shadow) > 1
+        ArchGDAL.addgeom!(full_shadow, new_shadow)
+    end
+    return full_shadow
+end
+
+function join_shadow_without_union!(full_shadow, new_shadow::ArchGDAL.IGeometry{ArchGDAL.wkbMultiLineString})
+    for i in getgeom(new_shadow)
+        join_shadow_without_union!(full_shadow, i)
+    end
+    return full_shadow
+end
+
+
 """
 
     add_shadow_intervals!(g, shadows; clear_old_shadows=false)
@@ -223,7 +250,7 @@ function add_shadow_intervals!(g, shadows; clear_old_shadows=false)
     shadow_tree = build_rtree(shadows.geometry)
 
     #return shadow_tree
-    @showprogress 1 "adding shadows" for edge in edges(g)
+    @showprogress 1 "adding shadows" for edge in edges(g)#[Edge(7228, 1911)]#edges(g)
         !has_prop(g, edge, :edgegeom) && continue  # skip helpers
 
         # add or reset all numeric props on edges which not yet have them
@@ -238,8 +265,7 @@ function add_shadow_intervals!(g, shadows; clear_old_shadows=false)
         linestring_rect = rect_from_geom(linestring)
 
         total_shadow_part_lengths = 0.0
-        full_shadow = ArchGDAL.createlinestring()::ArchGDAL.IGeometry{ArchGDAL.wkbLineString}
-
+        full_shadow_segmented = ArchGDAL.createmultilinestring()::ArchGDAL.IGeometry{ArchGDAL.wkbMultiLineString}
         intersecting_elements = SpatialIndexing.intersects_with(shadow_tree, linestring_rect)
         TreeIntersectionType = eltype(intersecting_elements)
         for spatialElement::TreeIntersectionType in intersecting_elements
@@ -255,7 +281,8 @@ function add_shadow_intervals!(g, shadows; clear_old_shadows=false)
 
             part_in_shadow = ArchGDAL.intersection(orig_geom, linestring)::EdgeGeomType
             total_shadow_part_lengths += ArchGDAL.geomlength(part_in_shadow)
-            full_shadow = ArchGDAL.union(full_shadow, part_in_shadow)::EdgeGeomType
+
+            join_shadow_without_union!(full_shadow_segmented, part_in_shadow)
         end
 
         # skip all edges not in shade
@@ -275,7 +302,7 @@ function add_shadow_intervals!(g, shadows; clear_old_shadows=false)
 
         # update the relevant properties of the graph
         full_shadow_previous = get_prop(g, edge, :shadowgeom)
-        full_shadow_segmented = ArchGDAL.union(full_shadow, full_shadow_previous)
+        join_shadow_without_union!(full_shadow_segmented, full_shadow_previous)
         reinterp_crs!(full_shadow_segmented, local_crs)
 
         set_prop!(g, edge, :shadowgeom_segmented, full_shadow_segmented)
@@ -286,7 +313,7 @@ function add_shadow_intervals!(g, shadows; clear_old_shadows=false)
 
         length_in_shadow = ArchGDAL.geomlength(full_shadow)
         set_prop!(g, edge, :shadowed_length, length_in_shadow)
-        set_prop!(g, edge, :buffer_shadowed_length, get_length_by_buffering(full_shadow, 1e-3, 2, edge))
+        set_prop!(g, edge, :buffer_shadowed_length, get_length_by_buffering(full_shadow_segmented, 1e-3, 2, edge))
 
         push!(df, Dict(
                 :edge => get_prop(g, edge, :osm_id),
@@ -300,3 +327,60 @@ function add_shadow_intervals!(g, shadows; clear_old_shadows=false)
     project_back!(g)
     return df
 end
+
+
+"""
+
+check_shadow_angle_integrity(g, max_angle)
+
+checks, if all angles in shadows in `g` are less than `max_angle` (in radians). If not, prints a warning.
+Used to test if the shadow joining works as intended.
+"""
+function check_shadow_angle_integrity(g, max_angle)
+    df = DataFrame((edge=e, shadowgeom=get_prop(g, e, :shadowgeom)) for e in filter_edges(g, :shadowgeom))
+    df.angles = angles_in.(df.shadowgeom)
+    df.all_less = all_less_than.(df.angles, max_angle)
+    no_problem = all(df.all_less)
+    if no_problem
+        @info "all angles between segments in the :shadowgeom field are less than $(max_angle)!"
+    else
+        filter!(:all_less => !, df)
+        @warn "$(nrow(df)) edges have angles larger than $max_angle. Returning problematic values."
+        return df
+    end
+end
+
+
+"""
+
+    angles_in(line)
+    angles_in(::MultiLineStringTrait, lines)
+    angles_in(::LineStringTrait, line)
+
+calculates all angles between segments in `line`. Result in radians.
+"""
+angles_in(line) = angles_in(geomtrait(line), line)
+
+function angles_in(::MultiLineStringTrait, lines)
+    mapfoldl(angles_in, vcat, getgeom(lines))
+end
+
+function angles_in(::LineStringTrait, line)
+    ngeom(line) < 3 && return Float64[]
+    points = getgeom(line) .|> getcoord .|> collect
+    x = getindex.(points, 1)
+    y = getindex.(points, 2)
+    dx = diff(x)
+    dy = diff(y)
+    l = @. sqrt(dx^2 + dy^2)
+    angle = @. clamp((dx[1:end-1] * dx[2:end] + dy[1:end-1] * dy[2:end]) / (l[1:end-1] * l[2:end]), -1.0, 1.0)
+    acos.(angle)
+end
+
+"""
+
+    all_less_than(angles, max_angle)
+
+checks if all values in `angles` are less than `max_angle`.
+"""
+all_less_than(angles, max_angle) = mapreduce(<(max_angle), &, angles, init=true)
