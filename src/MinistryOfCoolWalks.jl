@@ -82,7 +82,7 @@ const HIGHWAYS_NOT_OFFSET = [
 
 export sunposition  # imported from CoolWalksUtils
 
-export add_shadow_intervals!, check_shadow_angle_integrity
+export add_shadow_intervals!, check_shadow_angle_integrity, npoints
 include("ShadowIntersection.jl")
 
 export build_rtree

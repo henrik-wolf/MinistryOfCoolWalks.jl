@@ -384,3 +384,16 @@ end
 checks if all values in `angles` are less than `max_angle`.
 """
 all_less_than(angles, max_angle) = mapreduce(<(max_angle), &, angles, init=true)
+
+"""
+
+    npoints(line)
+    npoints(::LineStringTrait, line)
+    npoints(::MultiLineStringTrait, line)
+
+calculates the number of points in a line or multiline.
+"""
+npoints(line) = npoints(geomtrait(line), line)
+
+npoints(::LineStringTrait, line) = ngeom(line)
+npoints(::MultiLineStringTrait, line) = mapreduce(ngeom, +, getgeom(line))
