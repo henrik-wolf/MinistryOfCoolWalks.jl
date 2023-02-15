@@ -340,9 +340,11 @@ function check_shadow_angle_integrity(g, max_angle)
     df = DataFrame((edge=e, shadowgeom=get_prop(g, e, :shadowgeom)) for e in filter_edges(g, :shadowgeom))
     df.angles = angles_in.(df.shadowgeom)
     df.all_less = all_less_than.(df.angles, max_angle)
+    df.max_angle = map(a -> length(a) == 0 ? 0.0 : maximum(a), df.angles)
     no_problem = all(df.all_less)
+    max_enc_angle = maximum(df.max_angle)
     if no_problem
-        @info "all angles between segments in the :shadowgeom field are less than $(max_angle)!"
+        @info "all angles between segments in the :shadowgeom field are less than $(max_angle)! (largest encountered angle: $max_enc_angle)"
     else
         filter!(:all_less => !, df)
         @warn "$(nrow(df)) edges have angles larger than $max_angle. Returning problematic values."
