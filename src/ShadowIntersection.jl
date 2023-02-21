@@ -349,7 +349,7 @@ function check_shadow_angle_integrity(g, max_angle)
         filter!(:all_less => !, df)
         @warn "$(nrow(df)) edges have angles larger than $max_angle. Returning problematic values."
     end
-    return df
+    return no_problem, df
 end
 
 
