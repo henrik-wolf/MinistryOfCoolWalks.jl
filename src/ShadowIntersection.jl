@@ -337,6 +337,8 @@ checks, if all angles in shadows in `g` are less than `max_angle` (in radians). 
 Used to test if the shadow joining works as intended.
 """
 function check_shadow_angle_integrity(g, max_angle)
+    c = first(filter_vertices(g, :lon))
+    project_local!(g, get_prop(g, c, :lon), get_prop(g, c, :lat))
     df = DataFrame((edge=e, shadowgeom=get_prop(g, e, :shadowgeom)) for e in filter_edges(g, :shadowgeom))
     df.angles = angles_in.(df.shadowgeom)
     df.all_less = all_less_than.(df.angles, max_angle)
@@ -349,6 +351,7 @@ function check_shadow_angle_integrity(g, max_angle)
         filter!(:all_less => !, df)
         @warn "$(nrow(df)) edges have angles larger than $max_angle. Returning problematic values."
     end
+    project_back!(g)
     return no_problem, df
 end
 
