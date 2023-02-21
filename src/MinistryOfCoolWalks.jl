@@ -7,6 +7,7 @@ using ShadowGraphs
 using CompositeBuildings
 using Graphs
 using MetaGraphs
+using SimpleWeightedGraphs
 using ProgressMeter
 using SpatialIndexing
 using Setfield
