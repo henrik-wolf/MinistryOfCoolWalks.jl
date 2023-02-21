@@ -67,7 +67,7 @@ real_length(w::ShadowWeight) = w.sun + w.shade
 
 returns the felt length of a `ShadowWeight`. It is defined as: `(1 - a) * shade + (1 + a) * sun`
 """
-felt_length(w::ShadowWeight) = (1 - w.a) * w.shade + (1 + w.a) * w.sun
+@inline felt_length(w::ShadowWeight) = (1 - w.a) * w.shade + (1 + w.a) * w.sun
 
 """
 
@@ -75,7 +75,7 @@ felt_length(w::ShadowWeight) = (1 - w.a) * w.shade + (1 + w.a) * w.sun
 
 Two `ShadowWeight`s are the considered equal, if their `felt_length`s are the same.
 """
-Base.:(==)(a::ShadowWeight, b::ShadowWeight) = felt_length(a) == felt_length(b)
+@inline Base.:(==)(a::ShadowWeight, b::ShadowWeight) = felt_length(a) == felt_length(b)
 
 """
 
@@ -83,7 +83,7 @@ Base.:(==)(a::ShadowWeight, b::ShadowWeight) = felt_length(a) == felt_length(b)
 
 a `ShadowWeight` is less than another, if its `felt_length` is less than the one of the other.
 """
-Base.:<(a::ShadowWeight, b::ShadowWeight) = felt_length(a) < felt_length(b)
+@inline Base.:<(a::ShadowWeight, b::ShadowWeight) = felt_length(a) < felt_length(b)
 
 """
 
@@ -97,7 +97,7 @@ that you only input valid `ShadowWeight`s.
 Special care has to be taken when adding values which identify with either zero or infinity. In this case,
 we ignore the condition of the `a` fields having to be the same and return just the appropriate input.
 """
-function Base.:+(a::ShadowWeight, b::ShadowWeight)
+@inline function Base.:+(a::ShadowWeight, b::ShadowWeight)
     # for some reason, routing is a lot faster if we use felt_length (if you have any idea why, let me know...)
     fla = felt_length(a)
     flb = felt_length(b)
@@ -174,11 +174,33 @@ to account for numerical deviations where the edge might be slightly shorter tha
 If the length in the shade is systematically longer than the full edge, this will not Error, but fail silently.
 Since we check the maximum values on construction, we can use `unsafe_ShadowWeight` to create the return value.
 """
-function Base.getindex(w::ShadowWeights, u::Integer, v::Integer)
+@inline function Base.getindex(w::ShadowWeights, u::Integer, v::Integer)
     full_length = w.full_weights[u, v]
     shadow_length = w.shadow_weights[u, v]
     return unsafe_ShadowWeight(w.a, shadow_length, abs(full_length - shadow_length))
 end
+
+#### Our own, low budget implementation of the johnson_shortest_paths because we can not subtract ShadowWeights.
+
+"""
+
+    Graphs.johnson_shortest_paths(g::AbstractGraph{U}, distmx::AbstractMatrix{T}) where {U<:Integer,T<:ShadowWeight}
+
+version of `johnson_shortest_paths` for `distmx` with `ShadowWeight` as entries, since we can not subtract these.
+(In reality, this is just a bunch of `dijkstra_shortest_paths`, wrapped to return a `JohnsonState`).
+"""
+function Graphs.johnson_shortest_paths(g::AbstractGraph{U}, distmx::AbstractMatrix{T}) where {U<:Integer,T<:ShadowWeight}
+    nvg = nv(g)
+    dists = Matrix{T}(undef, nvg, nvg)
+    parents = Matrix{U}(undef, nvg, nvg)
+    for v in vertices(g)
+        dijk_state = dijkstra_shortest_paths(g, v, distmx)
+        dists[v, :] = dijk_state.dists
+        parents[v, :] = dijk_state.parents
+    end
+    return Graphs.JohnsonState(dists, parents)
+end
+
 
 #### Hereafter, we build a different approach, not using a custom real, but rather a more elaborate getindex method.
 
