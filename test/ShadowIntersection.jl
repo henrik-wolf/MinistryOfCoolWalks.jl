@@ -78,10 +78,12 @@
         s = CompositeBuildings.cast_shadow(b, :height_mean, [1.0, -0.4, 0.2])
         add_shadow_intervals!(g, s)
 
-        no_problems = check_shadow_angle_integrity(g, 0.9π)
+        no_problem_bool, no_problems = check_shadow_angle_integrity(g, 0.9π)
         @test nrow(no_problems) == 1506
+        @test no_problem_bool
 
-        problems = check_shadow_angle_integrity(g, 0.1π)
+        no_problem_bool, problems = check_shadow_angle_integrity(g, 0.1π)
         @test nrow(problems) == 228
+        @test !no_problem_bool
     end
 end

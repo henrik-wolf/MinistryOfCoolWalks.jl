@@ -187,8 +187,15 @@ end
 converts graph `g` with weights in `distmx` into `SimpleWeightedDiGraph` with weights from distmx.
 """
 function to_SimpleWeightedDiGraph(g, distmx=weights(g))
-    s = src.(edges(g))
-    d = dst.(edges(g))
+    if is_directed(g)
+        s = src.(edges(g))
+        d = dst.(edges(g))
+    else
+        s1 = src.(edges(g))
+        d1 = dst.(edges(g))
+        s = [s1; d1]
+        d = [d1; s1]
+    end
     ws = [distmx[s, d] for (s, d) in zip(s, d)]
     SimpleWeightedDiGraph(s, d, ws)
 end
