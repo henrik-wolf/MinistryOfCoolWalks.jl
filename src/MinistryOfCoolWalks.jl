@@ -86,9 +86,6 @@ export sunposition  # imported from CoolWalksUtils
 export add_shadow_intervals!, check_shadow_angle_integrity, npoints
 include("ShadowIntersection.jl")
 
-export build_rtree
-include("RTreeBuilding.jl")
-
 export correct_centerlines!
 include("CenterlineCorrection.jl")
 
