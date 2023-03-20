@@ -11,6 +11,5 @@ using DataFrames
 using Test
 
 include("CenterlineCorrection.jl")
-include("RTreeBuilding.jl")
 include("ShadowIntersection.jl")
 include("Routing.jl")
