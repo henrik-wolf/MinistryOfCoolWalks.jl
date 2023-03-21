@@ -341,10 +341,10 @@ import MinistryOfCoolWalks: ShadowWeight
         g_baseline = johnson_shortest_paths(g, weights(g))
         g_shadow_baseline = johnson_shortest_paths(g, ShadowWeights(g, 0.0))
 
-        @test all(g_baseline.parents == g_floyd_warshall_baseline.parents)
+        @test all(g_baseline.parents .== g_floyd_warshall_baseline.parents)
         @test all(g_baseline.dists .≈ g_floyd_warshall_baseline.dists)
 
-        @test all(g_baseline.parents == g_shadow_baseline.parents)
+        @test all(g_baseline.parents .== g_shadow_baseline.parents)
         @test all(g_baseline.dists .≈ felt_length.(g_shadow_baseline.dists))
         @test all(g_baseline.dists .≈ real_length.(g_shadow_baseline.dists))
 
@@ -371,15 +371,15 @@ import MinistryOfCoolWalks: ShadowWeight
 
     @testset "johnson_shortest_paths" begin
         ##### TRIANGLE GRAPH #####
-        g2 = MetaGraph(3, :full_length, 0.0)
-        add_edge!(g2, 1, 2, Dict(:full_length => 1.0, :shadowed_length => 0.9))
-        add_edge!(g2, 2, 3, Dict(:full_length => 1.0, :shadowed_length => 0.5))
-        add_edge!(g2, 3, 1, Dict(:full_length => 1.0, :shadowed_length => 0.1))
-        run_johnson_test_on(g2)
+        g = MetaGraph(3, :full_length, 0.0)
+        add_edge!(g, 1, 2, Dict(:full_length => 1.0, :shadowed_length => 0.9))
+        add_edge!(g, 2, 3, Dict(:full_length => 1.0, :shadowed_length => 0.5))
+        add_edge!(g, 3, 1, Dict(:full_length => 1.0, :shadowed_length => 0.1))
+        run_johnson_test_on(g)
 
-        ### KARATE GRAPH WITH SOME UNREACHABLES ###
+        ### KARATE GRAPH ###
         g = MetaDiGraph(smallgraph(:karate), :geom_length, 0.0)
-        add_vertices!(g, 3)
+        # unreachables are dropped when transforming to simpleweightedgraph add_vertices!(g, 3)
         for e in edges(g)
             set_prop!(g, e, :geom_length, 1 + src(e) + dst(e))
             set_prop!(g, e, :shadowed_length, abs(src(e) - dst(e)))
