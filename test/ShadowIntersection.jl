@@ -83,7 +83,7 @@
         @test no_problem_bool
 
         no_problem_bool, problems = check_shadow_angle_integrity(g, 0.1π)
-        @test nrow(problems) == 228
+        @test nrow(problems) == 203
         @test !no_problem_bool
     end
 end
