@@ -16,7 +16,6 @@ makedocs(;
     ),
     pages=[
         "Home" => "index.md",
-        "Polygon RTrees" => "RTreeBuilding.md",
         "Centerline correction" => "CenterlineCorrection.md",
         "Shadow intersections" => "ShadowIntersection.md",
         "Routing" => "Routing.md"

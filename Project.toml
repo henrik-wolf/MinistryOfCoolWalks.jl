@@ -14,6 +14,7 @@ MetaGraphs = "626554b9-1ddb-594c-aa3c-2596fe9399a5"
 ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
 Setfield = "efcf1570-3423-57d1-acb7-fd33fddbac46"
 ShadowGraphs = "bb16ec3a-7e9e-4bd8-a580-2befe1914c0f"
+SimpleWeightedGraphs = "47aef6b3-ad0c-573a-a1e2-d07658019622"
 SpatialIndexing = "d4ead438-fe20-5cc5-a293-4fd39a41b74c"
 TreeLoaders = "f47e3ccc-e4ba-4197-93dd-e1f87b2e9c3f"
 
