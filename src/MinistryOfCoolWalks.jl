@@ -91,4 +91,6 @@ include("CenterlineCorrection.jl")
 
 export felt_length, real_length, ShadowWeights, ShadowWeightsLight, reevaluate_distances
 include("Routing.jl")
+
+include("HexagonalBins.jl")
 end
