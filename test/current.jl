@@ -31,6 +31,10 @@ trees = load_nottingham_trees(joinpath(datapath, "trees/trees_full_rest.csv"); b
 
 get_prop(g, :center_lon)
 
+(h, v) = hexagon_histogram(MinistryOfCoolWalks.aggregator_graph_vertex_count, Graphs.vertices(g), g, 50)
+
+all(v .== values)
+
 hexes, values = hexagon_histogram(Graphs.vertices(g), g, 50) do vert, g, hextree
     values = zeros(length(hextree))
     for inter in intersects_with(hextree, rect_from_geom(get_prop(g, vert, :pointgeom)))
@@ -39,6 +43,9 @@ hexes, values = hexagon_histogram(Graphs.vertices(g), g, 50) do vert, g, hextree
     return values
 end
 
+
+(bh, bv) = hexagon_histogram(MinistryOfCoolWalks.aggregator_dataframe_polygon_area, buildings, 50; filter_values=(>(0.0)))
+
 building_hexes, building_values = hexagon_histogram(buildings, 50, filter_values=(>(0.0))) do r, hextree
     values = zeros(length(hextree))
     for inter in intersects_with(hextree, rect_from_geom(r.geometry))
@@ -46,7 +53,7 @@ building_hexes, building_values = hexagon_histogram(buildings, 50, filter_values
             values[inter.id] += ArchGDAL.geomarea(ArchGDAL.intersection(inter.val.orig, r.geometry))
         end
     end
-    return values ./ (3 * sqrt(3) * 50 * 50 / 2)
+    return values
 end
 
 plot(hexes, fill_z=permutedims(values))
