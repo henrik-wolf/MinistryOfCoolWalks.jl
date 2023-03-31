@@ -149,7 +149,7 @@ A few aggregators will be implemented below, prefixed with `aggregator_dataframe
 # Example
 To get the area of the buildings given as polygons in each hexagon, you can do:
 ```julia
-    building_hexes, building_values = hexagon_histogram(buildings, 50; filter_values=(>(0.0))) do r, hextree
+    hexes, values = hexagon_histogram(buildings, 50; filter_values=(>(0.0))) do r, hextree
         values = zeros(length(hextree))
         for inter in intersects_with(hextree, rect_from_geom(r.geometry))
             if ArchGDAL.intersects(inter.val.prep, r.geometry)
@@ -204,6 +204,18 @@ or `edges(g)`. `g` is expected to have the following props: `:center_lon, :cente
 # The aggregator
 now receives `(i, g, hextree)` as arguments, where `i` is the current state of the `iterator`, `g` is the graph, and `hextree` is the
 RTree of hexagons. Apart from that, it is expected to behave in the same way as the one from the `DataFrame` version of this function.
+
+# Example
+To get the number of vertices in a hexagon, you can do something like:
+```julia
+    hexes, values = hexagon_histogram(Graphs.vertices(g), g, 50) do vert, g, hextree
+        values = zeros(length(hextree))
+        for inter in intersects_with(hextree, rect_from_geom(get_prop(g, vert, :pointgeom)))
+            values[inter.id] += 1
+        end
+        return values
+    end
+```
 
 All other statements given there do apply as well. Aggregators for this method are prefixed with `aggregator_graph_`
 """
