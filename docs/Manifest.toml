@@ -76,6 +76,11 @@ git-tree-sha1 = "c5fd7cd27ac4aed0acf4b73948f0110ff2a854b2"
 uuid = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 version = "0.10.7"
 
+[[deps.Chain]]
+git-tree-sha1 = "8c4920235f6c561e401dfe569beb8b924adad003"
+uuid = "8be319e6-bccf-4806-a6f7-6fae938471bc"
+version = "0.5.0"
+
 [[deps.ChainRulesCore]]
 deps = ["Compat", "LinearAlgebra", "SparseArrays"]
 git-tree-sha1 = "e7ff6cadf743c098e08fca25c91103ee4303c9bb"
@@ -142,7 +147,7 @@ uuid = "187b0558-2788-49d3-abe0-74a17ed4e7c9"
 version = "1.4.1"
 
 [[deps.CoolWalksUtils]]
-deps = ["ArchGDAL", "Dates"]
+deps = ["ArchGDAL", "Dates", "GeoInterface", "SpatialIndexing"]
 path = "../../CoolWalksUtils.jl"
 uuid = "5abba2a6-77e2-4331-9785-93f3fa89e9c9"
 version = "0.1.0"
@@ -323,6 +328,12 @@ deps = ["Base64", "CodecZlib", "Dates", "IniFile", "Logging", "LoggingExtras", "
 git-tree-sha1 = "e1acc37ed078d99a714ed8376446f92a5535ca65"
 uuid = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 version = "1.5.5"
+
+[[deps.Hexagons]]
+deps = ["Test"]
+git-tree-sha1 = "de4a6f9e7c4710ced6838ca906f81905f7385fd6"
+uuid = "a1b4810d-1bce-5fbd-ac56-80944d57a21f"
+version = "0.2.0"
 
 [[deps.IOCapture]]
 deps = ["Logging", "Random"]
@@ -540,7 +551,7 @@ uuid = "626554b9-1ddb-594c-aa3c-2596fe9399a5"
 version = "0.7.1"
 
 [[deps.MinistryOfCoolWalks]]
-deps = ["ArchGDAL", "CompositeBuildings", "CoolWalksUtils", "DataFrames", "GeoInterface", "Graphs", "MetaGraphs", "ProgressMeter", "Setfield", "ShadowGraphs", "SpatialIndexing", "TreeLoaders"]
+deps = ["ArchGDAL", "Chain", "CompositeBuildings", "CoolWalksUtils", "DataFrames", "GeoInterface", "Graphs", "Hexagons", "MetaGraphs", "ProgressMeter", "Setfield", "ShadowGraphs", "SimpleWeightedGraphs", "SpatialIndexing", "TreeLoaders"]
 path = ".."
 uuid = "8af523f7-f13f-4fcd-8beb-cc917078799e"
 version = "0.1.0"
@@ -751,7 +762,7 @@ uuid = "efcf1570-3423-57d1-acb7-fd33fddbac46"
 version = "1.1.1"
 
 [[deps.ShadowGraphs]]
-deps = ["ArchGDAL", "CSV", "CoolWalksUtils", "DataFrames", "Folium", "Graphs", "LightOSM", "LightXML", "MetaGraphs", "ProgressMeter", "Statistics", "StatsBase"]
+deps = ["ArchGDAL", "CSV", "Chain", "CoolWalksUtils", "DataFrames", "Folium", "GeoInterface", "Graphs", "LightOSM", "LightXML", "MetaGraphs", "ProgressMeter", "SparseArrays", "SpatialIndexing", "Statistics", "StatsBase"]
 path = "../../ShadowGraphs.jl"
 uuid = "bb16ec3a-7e9e-4bd8-a580-2befe1914c0f"
 version = "0.1.0"

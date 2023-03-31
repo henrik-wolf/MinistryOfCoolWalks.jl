@@ -126,7 +126,8 @@ end
 
 """
 
-    hexagon_histogram(aggregator, gdf::DataFrame, radius; buffer=0, danger_value=10000, filter_values=x -> true)
+    hexagon_histogram(aggregator, gdf::DataFrame, radius;
+        buffer=0, danger_value=10000, filter_values=x -> true)
 
 calculates the "generalised histogram" for data in a dataframe `gdf`, which is expected to have the `"center_lon"`
 and `"center_lat"` metadata, as well as a column named `:geometry`, which will be projected to local coordinates for
@@ -137,7 +138,7 @@ After projecting the we calculate the appropriate hexagon cover with hexagons of
 
 We then build an rtree out of the resulting hexagonal geometries, which will be passed to the `aggregator` function.
 
-Returns (hexagons, values) for those values for which `filter_values(value) == true`.
+Returns `(hexagons, values)` for those values for which `filter_values(value) == true`.
 
 # The aggregator
 the aggregator is a closure (or function) `(DataFrames.DataFrameRow, SpatialIndexing.RTree) -> Vector{Float64}`, which calculates the
@@ -149,15 +150,15 @@ A few aggregators will be implemented below, prefixed with `aggregator_dataframe
 # Example
 To get the area of the buildings given as polygons in each hexagon, you can do:
 ```julia
-    hexes, values = hexagon_histogram(buildings, 50; filter_values=(>(0.0))) do r, hextree
-        values = zeros(length(hextree))
-        for inter in intersects_with(hextree, rect_from_geom(r.geometry))
-            if ArchGDAL.intersects(inter.val.prep, r.geometry)
-                values[inter.id] += ArchGDAL.geomarea(ArchGDAL.intersection(inter.val.orig, r.geometry))
-            end
+hexes, values = hexagon_histogram(buildings, 50; filter_values=(>(0.0))) do r, hextree
+    values = zeros(length(hextree))
+    for inter in intersects_with(hextree, rect_from_geom(r.geometry))
+        if ArchGDAL.intersects(inter.val.prep, r.geometry)
+            values[inter.id] += ArchGDAL.geomarea(ArchGDAL.intersection(inter.val.orig, r.geometry))
         end
-        return values
     end
+    return values
+end
 ```
 
 # Drawbacks
@@ -173,6 +174,7 @@ Most of this feels like it could feasibly be written as a `mapreduce`...
 Somehow, it would be nicer if we were to transform the inner loop into one over the hexagons. As such, every aggregation function
 would be possible, and this in general makes a little bit more sense. For that to work, we would have to somehow build an RTree
 out of the DataFrame. Which would be possible, I guess, but a bit more work that this thing here.
+#TODO: Implement that and a better rtree_building in `CoolWalksUtils.jl`...
 
 There is a lot of nearly duplicate code going on here. Not sure what I can do about that though.
 """
@@ -196,7 +198,10 @@ end
 
 """
 
-    hexagon_histogram(aggregator, iterator, g::AbstractGraph, radius; buffer=0, danger_value=10000, filter_values=x -> true)
+    hexagon_histogram(aggregator, iterator, g::AbstractGraph, radius;
+        buffer=0, danger_value=10000, filter_values=x -> true)
+
+# see the docstring for the other method for an in depth explanation
 
 calculates the generalised histogram for data in a graph, by looping over the `iterator`. Most often, this value is either `vertices(g)`
 or `edges(g)`. `g` is expected to have the following props: `:center_lon, :center_lat, :crs`.
@@ -204,20 +209,21 @@ or `edges(g)`. `g` is expected to have the following props: `:center_lon, :cente
 # The aggregator
 now receives `(i, g, hextree)` as arguments, where `i` is the current state of the `iterator`, `g` is the graph, and `hextree` is the
 RTree of hexagons. Apart from that, it is expected to behave in the same way as the one from the `DataFrame` version of this function.
+All other statements given there do apply as well. 
 
 # Example
 To get the number of vertices in a hexagon, you can do something like:
 ```julia
-    hexes, values = hexagon_histogram(Graphs.vertices(g), g, 50) do vert, g, hextree
-        values = zeros(length(hextree))
-        for inter in intersects_with(hextree, rect_from_geom(get_prop(g, vert, :pointgeom)))
-            values[inter.id] += 1
-        end
-        return values
+hexes, values = hexagon_histogram(Graphs.vertices(g), g, 50) do vert, g, hextree
+    values = zeros(length(hextree))
+    for inter in intersects_with(hextree, rect_from_geom(get_prop(g, vert, :pointgeom)))
+        values[inter.id] += 1
     end
+    return values
+end
 ```
 
-All other statements given there do apply as well. Aggregators for this method are prefixed with `aggregator_graph_`
+Aggregators for this method are prefixed with `aggregator_graph_`
 """
 function hexagon_histogram(aggregator, iterator, g::AbstractGraph, radius; buffer=0, danger_value=10000, filter_values=x -> true)
     project_local!(g, get_prop(g, :center_lon), get_prop(g, :center_lat))
@@ -257,7 +263,7 @@ end
 
     aggregator_graph_vertex_count(vert, g, hextree)
 
-aggregator to get the number of vertices of the graph `g` in each hexagon. Usese the `:pointgeom` property of the graph.
+aggregator to get the number of vertices of the graph `g` in each hexagon. Uses the `:pointgeom` property of the graph.
 """
 function aggregator_graph_vertex_count(vert, g, hextree)
     values = zeros(length(hextree))
