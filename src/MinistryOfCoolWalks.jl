@@ -97,6 +97,6 @@ include("CenterlineCorrection.jl")
 export felt_length, real_length, ShadowWeights, ShadowWeightsLight, reevaluate_distances
 include("Routing.jl")
 
-export hexagonify, hexes2polys
+export hexagonify, hexes2polys, hexagon_histogram
 include("HexagonalBins.jl")
 end

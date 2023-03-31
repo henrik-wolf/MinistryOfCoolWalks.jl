@@ -9,15 +9,19 @@ using MetaGraphs
 using Folium
 using GeoInterface
 using DataFrames
-using SpatialIndexing
 using CoolWalksUtils
 using JET
 using BenchmarkTools
 using Plots
 using Hexagons
+using SpatialIndexing
 
 datapath = joinpath(homedir(), "Desktop/Masterarbeit/data/Nottingham/")
 buildings = load_british_shapefiles(joinpath(datapath, "Nottingham.shp"); bbox=(minlon=-1.2, minlat=52.89, maxlon=-1.165, maxlat=52.92))
+g = shadow_graph_from_file(joinpath(datapath, "clifton/test_clifton_bike.json"); network_type=:bike)
+
+
+
 sort!(buildings, :geometry, by=b -> ngeom(getgeom(b, 1)))
 buildings.geotypes = ngeom.(buildings.geometry)
 gb = groupby(buildings, :geotypes)
@@ -25,6 +29,52 @@ gb[2]
 shadows = cast_shadow(buildings, :height_mean, [1.0, -0.5, 0.4])
 trees = load_nottingham_trees(joinpath(datapath, "trees/trees_full_rest.csv"); bbox=(minlon=-1.2, minlat=52.89, maxlon=-1.165, maxlat=52.92))
 
+get_prop(g, :center_lon)
+
+hexes, values = hexagon_histogram(Graphs.vertices(g), g, 50) do vert, g, hextree
+    values = zeros(length(hextree))
+    for inter in intersects_with(hextree, rect_from_geom(get_prop(g, vert, :pointgeom)))
+        values[inter.id] += 1
+    end
+    return values
+end
+
+building_hexes, building_values = hexagon_histogram(buildings, 50, filter_values=(>(0.0))) do r, hextree
+    values = zeros(length(hextree))
+    for inter in intersects_with(hextree, rect_from_geom(r.geometry))
+        if ArchGDAL.intersects(inter.val.prep, r.geometry)
+            values[inter.id] += ArchGDAL.geomarea(ArchGDAL.intersection(inter.val.orig, r.geometry))
+        end
+    end
+    return values ./ (3 * sqrt(3) * 50 * 50 / 2)
+end
+
+plot(hexes, fill_z=permutedims(values))
+plot(building_hexes, fill_z=permutedims(building_values))
+
+@enter hex(colors[0.4])
+maximum(values)
+begin
+    colors = cgrad(:inferno)
+    f = draw(buildings.geometry, figure_params=Dict(:height => 1000))
+    foreach((h, v) -> draw!(f, h, fill_opacity=0.7, fill_color='#' * hex(colors[v/33.0], :RRGGBB)), hexes, values)
+    f
+end
+
+hexagon_histogram(buildings, r2, 0) do r, hextree
+    values = zeros(length(hextree))
+    # check for intersection with bounding boxes of hex and geometry
+    for res in intersects_with(hextree, rect_from_geom(r.geometry))
+        # check if they actually intersect
+        if ArchGDAL.intersects(res.val.prep, r.geometry)
+            # actually calculate the return values
+            values[res.id] = ArchGDAL.intersection(res.val.geom, r.geometry)
+        end
+    end
+    return values
+end
+
+hex(cgrad(:inferno)[0.4])
 
 tree_shadows = cast_shadow(trees, tree_param_getter_nottingham, [1.0, -0.5, 0.4])
 
@@ -453,9 +503,14 @@ end
 
 g = shadow_graph_from_file(joinpath(datapath, "clifton/test_clifton_bike.json"); network_type=:bike)
 
+buildings
+
 r2 = 0.001
 graph_hexes = hexagonify(g, r2, buffer=2)
-ag_hexes = hexes2polys(graph_hexes, r2)
+building_hexes = hexagonify(buildings.geometry, r2)
+graph_hexes_poly = hexes2polys(graph_hexes, r2)
+building_hexes_poly = hexes2polys(building_hexes, r2)
+
 
 all_points = ArchGDAL.createmultipoint()
 foreach(Graphs.vertices(g)) do v
@@ -474,13 +529,52 @@ buffered
 
 begin
     p3 = plot(framestyle=:box, ratio=1)
-    plot!(p3, ag_hexes, c=:grey)
+    plot!(p3, graph_hexes_poly, c=:grey)
+    plot!(p3, building_hexes_poly, c=:blue)
     foreach(h -> plot_hex!(p3, h, r2, c=2, lw=2), graph_hexes)
     for e in edges(g)
         if has_prop(g, e, :edgegeom)
-            plot!(p3, get_prop(g, e, :edgegeom), c=1, lw=2)
+            # plot!(p3, get_prop(g, e, :edgegeom), c=1, lw=2)
         end
     end
     plot!(p3, all_points, c=1, ms=2, size=(800, 800))
     p3
 end
+
+
+
+
+# Base.:^(f::Function, i::Int) = i == 0 ? identity : i == 1 ? f : x -> f((f^(i - 1))(x))
+
+next_fibo(x) = [x; x[end-1] + x[end]]
+
+(next_fibo^10)([1, 1])
+
+mycoll = ArchGDAL.creategeomcollection()
+
+for v in Graphs.vertices(g)
+    ArchGDAL.addgeom!(mycoll, get_prop(g, v, :pointgeom))
+end
+
+for e in Graphs.edges(g)
+    try
+        ArchGDAL.addgeom!(mycoll, get_prop(g, e, :edgegeom))
+    catch
+    end
+end
+
+getgeom(mycoll) .|> typeof |> Set
+
+plot!(ArchGDAL.convexhull(mycoll))
+
+plot(mycoll)
+
+
+
+
+using CoolWalksUtils
+
+hextree = build_rtree(building_hexes_poly);
+
+inter = intersects_with(hextree, rect_from_geom(buildings.geometry[1])) |> collect
+
