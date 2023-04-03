@@ -127,7 +127,8 @@ end
 """
 
     hexagon_histogram(aggregator, gdf::DataFrame, radius;
-        buffer=0, danger_value=10000, filter_values=x -> true)
+        combinator=+, init::T=0.0,
+        buffer=0, danger_value=10000, filter_values=x -> true) where {T}
 
 calculates the "generalised histogram" for data in a dataframe `gdf`, which is expected to have the `"center_lon"`
 and `"center_lat"` metadata, as well as a column named `:geometry`, which will be projected to local coordinates for
@@ -138,10 +139,20 @@ After projecting the we calculate the appropriate hexagon cover with hexagons of
 
 We then build an rtree out of the resulting hexagonal geometries, which will be passed to the `aggregator` function.
 
+for each row, we call the `aggregator` and combine each element of returned vector with a `values` vector 
+by calling `values[i] = combinator(values[i], aggregator(...)[i])` for each `i in 1:number_of_hexagons`.
+
 Returns `(hexagons, values)` for those values for which `filter_values(value) == true`.
 
+# Keyword Arguments
+- `combinator=+`: function used to combine the elements from each call to `aggregator` with the values from previous calls to aggregator. Signature: `(a::T, b)->c::T`.
+- `init::T=0.0`: value and `eltype` with which to fill the `values` array on construction.
+- `buffer=0`: amount of times the hexgrid should be buffered after filling the area.
+- `danger_value=10000`: expected number of hexagons above which the hexagonify function will throw an error.
+- `filter_values=x->true`: function to decide if a resulting value should be returned.
+
 # The aggregator
-the aggregator is a closure (or function) `(DataFrames.DataFrameRow, SpatialIndexing.RTree) -> Vector{Float64}`, which calculates the
+the aggregator is a closure (or function) `(DataFrames.DataFrameRow, SpatialIndexing.RTree) -> Vector{T}`, which calculates the
 contribution of the values in the given `row` towards the total value of each hexagonal cell, the index of the return
 vector corresponds to the hexagon. In the end, all of these contributions are added to give the final value.
 
@@ -178,16 +189,17 @@ out of the DataFrame. Which would be possible, I guess, but a bit more work that
 
 There is a lot of nearly duplicate code going on here. Not sure what I can do about that though.
 """
-function hexagon_histogram(aggregator, gdf::DataFrame, radius; buffer=0, danger_value=10000, filter_values=x -> true)
+function hexagon_histogram(aggregator, gdf::DataFrame, radius; combinator=+, init::T=0.0, buffer=0, danger_value=10000, filter_values=x -> true) where {T}
     project_local!(gdf.geometry, metadata(gdf, "center_lon"), metadata(gdf, "center_lat"))
     # setup hexagonal polygons
     hexes = hexes2polys(hexagonify(gdf.geometry, radius; buffer=buffer), radius)
     foreach(h -> reinterp_crs!(h, ArchGDAL.getspatialref(gdf.geometry[1])), hexes)
     hextree = build_rtree(hexes)
 
-    values = zeros(length(hexes))
+    values = Vector{T}(undef, length(hexes))
+    fill!(values, init)
     for r in eachrow(gdf)
-        values += aggregator(r, hextree)
+        map!(combinator, values, values, aggregator(r, hextree))
     end
 
     project_back!(gdf.geometry)
@@ -199,9 +211,10 @@ end
 """
 
     hexagon_histogram(aggregator, iterator, g::AbstractGraph, radius;
-        buffer=0, danger_value=10000, filter_values=x -> true)
+        combinator=+, init::T=0.0,
+        buffer=0, danger_value=10000, filter_values=x -> true) where {T}
 
-# see the docstring for the other method for an in depth explanation
+# see the docstring for the other method taking a dataframe, for an in depth explanation of everything.
 
 calculates the generalised histogram for data in a graph, by looping over the `iterator`. Most often, this value is either `vertices(g)`
 or `edges(g)`. `g` is expected to have the following props: `:center_lon, :center_lat, :crs`.
@@ -225,16 +238,17 @@ end
 
 Aggregators for this method are prefixed with `aggregator_graph_`
 """
-function hexagon_histogram(aggregator, iterator, g::AbstractGraph, radius; buffer=0, danger_value=10000, filter_values=x -> true)
+function hexagon_histogram(aggregator, iterator, g::AbstractGraph, radius; combinator=+, init::T=0.0, buffer=0, danger_value=10000, filter_values=x -> true) where {T}
     project_local!(g, get_prop(g, :center_lon), get_prop(g, :center_lat))
     # setup hexagonal polygons
     hexes = hexes2polys(hexagonify(g, radius; buffer=buffer), radius)
     foreach(h -> reinterp_crs!(h, get_prop(g, :crs)), hexes)
     hextree = build_rtree(hexes)
 
-    values = zeros(length(hexes))
+    values = Vector{T}(undef, length(hexes))
+    fill!(values, init)
     for i in iterator
-        values .+= aggregator(i, g, hextree)
+        map!(combinator, values, values, aggregator(i, g, hextree))
     end
 
     project_back!(g)

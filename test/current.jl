@@ -33,7 +33,6 @@ get_prop(g, :center_lon)
 
 (h, v) = hexagon_histogram(MinistryOfCoolWalks.aggregator_graph_vertex_count, Graphs.vertices(g), g, 50)
 
-all(v .== values)
 
 hexes, values = hexagon_histogram(Graphs.vertices(g), g, 50) do vert, g, hextree
     values = zeros(length(hextree))
