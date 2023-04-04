@@ -33,7 +33,6 @@ get_prop(g, :center_lon)
 
 (h, v) = hexagon_histogram(MinistryOfCoolWalks.aggregator_graph_vertex_count, Graphs.vertices(g), g, 50)
 
-
 hexes, values = hexagon_histogram(Graphs.vertices(g), g, 50) do vert, g, hextree
     values = zeros(length(hextree))
     for inter in intersects_with(hextree, rect_from_geom(get_prop(g, vert, :pointgeom)))
@@ -44,6 +43,7 @@ end
 
 
 (bh, bv) = hexagon_histogram(MinistryOfCoolWalks.aggregator_dataframe_polygon_area, buildings, 50; filter_values=(>(0.0)))
+bv ./= MinistryOfCoolWalks.hexagon_area(50, 50)
 
 building_hexes, building_values = hexagon_histogram(buildings, 50, filter_values=(>(0.0))) do r, hextree
     values = zeros(length(hextree))
@@ -60,12 +60,33 @@ plot(building_hexes, fill_z=permutedims(building_values))
 
 @enter hex(colors[0.4])
 maximum(values)
+
+b1, c = zip(buildings.geometry, Iterators.cycle([:red])) |> first
+
+zip(b1, Iterators.cycle([1, 2, 3])) |> collect
+
+b1
+
+
 begin
-    colors = cgrad(:inferno)
+    #colors = cgrad(:inferno)
     f = draw(buildings.geometry, figure_params=Dict(:height => 1000))
-    foreach((h, v) -> draw!(f, h, fill_opacity=0.7, fill_color='#' * hex(colors[v/33.0], :RRGGBB)), hexes, values)
+    draw_colorbar!(f, "building area density", bv, tick_angle=0, label_pad=0.5)
+    draw!(f, bh, color=bv)
+    #draw!(f, g, :vertices)
     f
 end
+
+@which Folium.process_colors(nothing, [1, 2], :extrema)
+
+begin
+    f = draw()
+    Folium.draw_text!(f, "tset", 0.0, 0.0; angle=90.0, fontsize=40)
+    draw!(f, 0.0, 0.0, :circle)
+end
+
+
+icon = Folium.flm.features.DivIcon(icon_size=(250, 3600), icon_anchor=(0, 0), html="<div style=\"background: red;\">testtest</div>")
 
 hexagon_histogram(buildings, r2, 0) do r, hextree
     values = zeros(length(hextree))
