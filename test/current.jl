@@ -31,7 +31,7 @@ trees = load_nottingham_trees(joinpath(datapath, "trees/trees_full_rest.csv"); b
 
 get_prop(g, :center_lon)
 
-(h, v) = hexagon_histogram(MinistryOfCoolWalks.aggregator_graph_vertex_count, Graphs.vertices(g), g, 50)
+(h, v) = hexagon_histogram(MinistryOfCoolWalks.aggregator_graph_vertex_count, Graphs.vertices(g), g, 50, filter_values=(>(0)))
 
 hexes, values = hexagon_histogram(Graphs.vertices(g), g, 50) do vert, g, hextree
     values = zeros(length(hextree))
@@ -67,12 +67,12 @@ zip(b1, Iterators.cycle([1, 2, 3])) |> collect
 
 b1
 
-
+buildings
 begin
     #colors = cgrad(:inferno)
-    f = draw(buildings.geometry, figure_params=Dict(:height => 1000))
-    draw_colorbar!(f, "building area density", bv, tick_angle=0, label_pad=0.5)
-    draw!(f, bh, color=bv)
+    f = draw(buildings.geometry, figure_params=Dict(:height => 1000), color=buildings.height_mean, cmap=:inferno, clims=(0, 10))
+    draw_colorbar!(f, "Building height", buildings.height_mean, cmap=:inferno, tick_angle=0, label_pad=0.3, margin_top=0.1, margin_bottom=0.1, clims=(0, 10))
+    # draw!(f, bh, color=bv)
     #draw!(f, g, :vertices)
     f
 end
