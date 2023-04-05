@@ -17,11 +17,13 @@ hex_center(hex::Hexagons.Hexagon, r) = ArchGDAL.createpoint(Hexagons.center(hex,
 """
 
     hexagonify(geometries, hex_radius; kwargs...)
-    hexagonify(g::AbstractGraph, hex_radius; kwargs...)
+    hexagonify(df::DataFrame, hex_radius; kwargs...) = hexagonify(df.geometry, hex_radius; kwargs...)
+    hexagonify(g::AbstractMetaGraph, hex_radius; kwargs...)
     hexagonify(polygon::ArchGDAL.IGeometry, hex_radius; buffer=0, danger_value=10000)
 
 puts a bunch of hexagons with radius `hex_radius` in the area given by:
 - the convex hull of a vector of `geometries`.
+- the convex hull of the colum titled `geometry` of a dataframe `df`.
 - the convex hull of the `:pointgeom` prop in the vertices of (`g`).
 - a `polygon`.
 
@@ -43,7 +45,9 @@ function hexagonify(geometries, hex_radius; kwargs...)
     hexagonify(ArchGDAL.convexhull(all_geom), hex_radius; kwargs...)
 end
 
-function hexagonify(g::AbstractGraph, hex_radius; kwargs...)
+hexagonify(df::DataFrame, hex_radius; kwargs...) = hexagonify(df.geometry, hex_radius; kwargs...)
+
+function hexagonify(g::AbstractMetaGraph, hex_radius; kwargs...)
     all_points = ArchGDAL.createmultipoint()
     foreach(vertices(g)) do v
         ArchGDAL.addgeom!(all_points, get_prop(g, v, :pointgeom))
@@ -126,14 +130,98 @@ end
 
 """
 
-    hexagon_histogram(aggregator, gdf::DataFrame, radius;
+    get_crs_for_hexagons(df::DataFrame)
+    get_crs_for_hexagons(g::AbstractMetaGraph) 
+
+unified interface for accessing the local coordinate system of dataframes and graphs that support it.
+"""
+get_crs_for_hexagons(df::DataFrame) = ArchGDAL.getspatialref(df.geometry[1])
+get_crs_for_hexagons(g::AbstractMetaGraph) = get_prop(g, :crs)
+
+"""
+
+    hexagon_histogram(aggregator, geom_source, radius; buffer=0, danger_value=10000, filter_values=x -> true)
+
+calculates the "generalised histogram" for data in a `DataFrame` or `MetaGraph`. For both these types, we expect
+the following methods to be implemented:
+- `project_local!`
+- `build_rtree` (`val` should be a `NamedTuple` with at least the `ArchGDAL.IGeometry` under the keyword of `orig`).
+- `hexagonify`
+- `get_crs_for_hexagons`
+- `project_back!`
+
+# Arguments
+- `aggregator`: closure `(actual_intersections::Vector{SpatialElem}, hexagon::ArchGDAL.IGemometry{WKBPolygon})->T`, where `T` is the type of result in each hexagon-bin.
+    the first Argument is a Vector of the `SpatialElem`ents in the R-Tree of `geom_source`, where `ArchGDAL.intersects(hexagon, intersection.val.orig)==true`. The second
+    argument is the hexagon which is currently aggregated over.
+- `geom_source`: source of geometry for R-Tree (and maybe other data.), currently, `DataFrame` and `AbstractMetaGraph` are supported.
+- `radius`: radius of hexagons in which the bins should be calculated. (Passed to `hexagonify`).
+
+# Keyword Arguments
+- `buffer=0`: Number of times the hexagons should be buffered before the aggregation.
+- `danger_value=10000`: Number of predicted hexes above which `hexagonify` will fail.
+- `filter_values=x->true`: Only hexagons where the `filter_values(aggregation_value)==true` will be returned.
+
+# Process
+We project `geom_source` to a local coordinate system and calculate the hexagonalisation of the area defined by it. The projected `geom_source`
+is the converted into an `R-Tree`. For each hexagon in the hexagonalisation we calculate the value within that hexagon using the `aggregator`,
+filter these `values` with `filter_values`, project everything back, and return only the hexagons and `values` where `filter_values(value)==true`.
+
+Returns `(filtered_hexagons, filtered_values)`
+
+# Examples
+To get the number of nodes of a `ShadowGraph` in each hexagon with more than 0 nodes, you can do something like this:
+```julia
+hexes, values = hexagon_histogram(shadow_graph, 50; filter_values=(>(0))) inters, hex
+    count(i -> i.val.type == :vertex, inters)
+end
+```
+
+To get the total area of (possibly overlapping) buildings do:
+```julia
+hexes, values = hexagon_histogram(buildings, 50) do inters, hex
+    geom = mapreduce(ArchGDAL.union, inters; init=ArchGDAL.createpolygon()) do i
+        ArchGDAL.intersection(hex, i.val.orig)
+    end
+    return ArchGDAL.geomarea(geom)
+end
+```
+"""
+function hexagon_histogram(aggregator, geom_source, radius; buffer=0, danger_value=10000, filter_values=x -> true)
+    project_local!(geom_source)
+    source_rtree = build_rtree(geom_source)
+
+    # setup hexagonal polygons
+    hexes = hexagonify(geom_source, radius; buffer=buffer, danger_value=danger_value)
+    poly_hexes = hexes2polys(hexes, radius)
+    foreach(h -> reinterp_crs!(h, get_crs_for_hexagons(geom_source)), poly_hexes)
+    prepared_poly_hexes = ArchGDAL.preparegeom.(poly_hexes)
+
+    values = map(poly_hexes, prepared_poly_hexes) do hex, prep_hex
+        possible_intersections = intersects_with(source_rtree, rect_from_geom(hex))
+        actual_intersections = [i for i in possible_intersections if ArchGDAL.intersects(prep_hex, i.val.orig)]
+        return aggregator(actual_intersections, hex)
+    end
+
+    project_back!(geom_source)
+    project_back!(poly_hexes)
+    values_filter = findall(filter_values, values)
+    return poly_hexes[values_filter], values[values_filter]
+end
+
+"""
+
+    hexagon_histogram_OLD(aggregator, gdf::DataFrame, radius;
         combinator=+, init::T=0.0,
         buffer=0, danger_value=10000, filter_values=x -> true) where {T}
 
 calculates the "generalised histogram" for data in a dataframe `gdf`, which is expected to have the `"center_lon"`
 and `"center_lat"` metadata, as well as a column named `:geometry`, which will be projected to local coordinates for
 this function.
-    
+
+!!! danger "Do not use!" This function was the first attempt at hexagonal histograms, and is kept around for sentimental
+    reasons, and to be deleted once the replacement `hexagon_histogram` is proven to work better, easier and more flexible.
+
 After projecting the we calculate the appropriate hexagon cover with hexagons of radius `radius`. The keywordarguments of
 `buffer` and `danger_value` are passed to the `hexagonify` function accordingly.
 
@@ -184,12 +272,12 @@ Most of this feels like it could feasibly be written as a `mapreduce`...
 
 Somehow, it would be nicer if we were to transform the inner loop into one over the hexagons. As such, every aggregation function
 would be possible, and this in general makes a little bit more sense. For that to work, we would have to somehow build an RTree
-out of the DataFrame. Which would be possible, I guess, but a bit more work that this thing here.
-#TODO: Implement that and a better rtree_building in `CoolWalksUtils.jl`...
+out of the DataFrame. Which would be possible, I guess, but a bit more work that this thing here. (was not too bad...)
+#TODid: Implement that and a better rtree_building in `CoolWalksUtils.jl`...
 
-There is a lot of nearly duplicate code going on here. Not sure what I can do about that though.
+There is a lot of nearly duplicate code going on here. Not sure what I can do about that though. (the rebuild did fix that...)
 """
-function hexagon_histogram(aggregator, gdf::DataFrame, radius; combinator=+, init::T=0.0, buffer=0, danger_value=10000, filter_values=x -> true) where {T}
+function hexagon_histogram_OLD(aggregator, gdf::DataFrame, radius; combinator=+, init::T=0.0, buffer=0, danger_value=10000, filter_values=x -> true) where {T}
     project_local!(gdf.geometry, metadata(gdf, "center_lon"), metadata(gdf, "center_lat"))
     # setup hexagonal polygons
     hexes = hexes2polys(hexagonify(gdf.geometry, radius; buffer=buffer), radius)
@@ -210,11 +298,14 @@ end
 
 """
 
-    hexagon_histogram(aggregator, iterator, g::AbstractGraph, radius;
+    hexagon_histogram_OLD(aggregator, iterator, g::AbstractGraph, radius;
         combinator=+, init::T=0.0,
         buffer=0, danger_value=10000, filter_values=x -> true) where {T}
 
 # see the docstring for the other method taking a dataframe, for an in depth explanation of everything.
+
+!!! danger "Do not use!" This function was the first attempt at hexagonal histograms, and is kept around for sentimental
+    reasons, and to be deleted once the replacement `hexagon_histogram` is proven to work better, easier and more flexible.
 
 calculates the generalised histogram for data in a graph, by looping over the `iterator`. Most often, this value is either `vertices(g)`
 or `edges(g)`. `g` is expected to have the following props: `:center_lon, :center_lat, :crs`.
@@ -238,7 +329,7 @@ end
 
 Aggregators for this method are prefixed with `aggregator_graph_`
 """
-function hexagon_histogram(aggregator, iterator, g::AbstractGraph, radius; combinator=+, init::T=0.0, buffer=0, danger_value=10000, filter_values=x -> true) where {T}
+function hexagon_histogram_OLD(aggregator, iterator, g::AbstractGraph, radius; combinator=+, init::T=0.0, buffer=0, danger_value=10000, filter_values=x -> true) where {T}
     project_local!(g, get_prop(g, :center_lon), get_prop(g, :center_lat))
     # setup hexagonal polygons
     hexes = hexes2polys(hexagonify(g, radius; buffer=buffer), radius)
@@ -282,7 +373,9 @@ aggregator to get the number of vertices of the graph `g` in each hexagon. Uses 
 function aggregator_graph_vertex_count(vert, g, hextree)
     values = zeros(length(hextree))
     for inter in intersects_with(hextree, rect_from_geom(get_prop(g, vert, :pointgeom)))
-        values[inter.id] += 1
+        if ArchGDAL.intersects(inter.val.orig, get_prop(g, vert, :pointgeom))
+            values[inter.id] += 1
+        end
     end
     return values
 end

@@ -16,6 +16,8 @@ using Plots
 using Hexagons
 using SpatialIndexing
 
+using BenchmarkTools
+
 datapath = joinpath(homedir(), "Desktop/Masterarbeit/data/Nottingham/")
 buildings = load_british_shapefiles(joinpath(datapath, "Nottingham.shp"); bbox=(minlon=-1.2, minlat=52.89, maxlon=-1.165, maxlat=52.92))
 g = shadow_graph_from_file(joinpath(datapath, "clifton/test_clifton_bike.json"); network_type=:bike)
@@ -31,7 +33,64 @@ trees = load_nottingham_trees(joinpath(datapath, "trees/trees_full_rest.csv"); b
 
 get_prop(g, :center_lon)
 
-(h, v) = hexagon_histogram(MinistryOfCoolWalks.aggregator_graph_vertex_count, Graphs.vertices(g), g, 50, filter_values=(>(0)))
+@benchmark hexagon_histogram(Graphs.vertices(g), g, 50, filter_values=(>(0))) do vert, g, hextree
+    values = zeros(length(hextree))
+    for inter in intersects_with(hextree, rect_from_geom(get_prop(g, vert, :pointgeom)))
+        if ArchGDAL.intersects(inter.val.orig, get_prop(g, vert, :pointgeom))
+            values[inter.id] += 1
+        end
+    end
+    return values
+end
+
+@benchmark hexagon_histogram2(g, 50, filter_values=(>(0))) do inters, hex
+    count(i -> i.val.type == :vertex, inters)
+end
+
+@benchmark hexagon_histogram(buildings, 50, filter_values=(>(0))) do row, hextree
+    values = zeros(length(hextree))
+    for inter in intersects_with(hextree, rect_from_geom(row.geometry))
+        if ArchGDAL.intersects(inter.val.prep, row.geometry)
+            values[inter.id] += ArchGDAL.geomarea(ArchGDAL.intersection(inter.val.orig, row.geometry))
+        end
+    end
+    return values
+end
+
+@benchmark hexagon_histogram2(buildings, 50, filter_values=(>(0))) do inters, hex
+    mapreduce(+, inters; init=0.0) do i
+        ArchGDAL.geomarea(ArchGDAL.intersection(hex, i.val.orig))
+    end
+end
+
+
+hexagon_histogram(buildings, 50, filter_values=(>(0))) do row, hextree
+    values = zeros(length(hextree))
+    for inter in intersects_with(hextree, rect_from_geom(row.geometry))
+        if ArchGDAL.intersects(inter.val.prep, row.geometry)
+            values[inter.id] += ArchGDAL.geomarea(ArchGDAL.intersection(inter.val.orig, row.geometry))
+        end
+    end
+    return values
+end
+
+@profview hexagon_histogram2(g, 30, filter_values=(>(0))) do inters, hex
+    count(i -> i.val.type == :vertex, inters)
+end
+
+@benchmark hexagon_histogram2(buildings, 50) do inters, hex
+    geom = mapreduce(ArchGDAL.union, inters; init=ArchGDAL.createpolygon()) do i
+        ArchGDAL.intersection(hex, i.val.orig)
+    end
+    reinterp_crs!(geom, ArchGDAL.getspatialref(hex))
+end
+
+scatter(v, v2)
+
+begin
+    f = draw(h, color=v)
+    draw!(f, g, :vertices)
+end
 
 hexes, values = hexagon_histogram(Graphs.vertices(g), g, 50) do vert, g, hextree
     values = zeros(length(hextree))
@@ -43,7 +102,7 @@ end
 
 
 (bh, bv) = hexagon_histogram(MinistryOfCoolWalks.aggregator_dataframe_polygon_area, buildings, 50; filter_values=(>(0.0)))
-bv ./= MinistryOfCoolWalks.hexagon_area(50, 50)
+
 
 building_hexes, building_values = hexagon_histogram(buildings, 50, filter_values=(>(0.0))) do r, hextree
     values = zeros(length(hextree))
