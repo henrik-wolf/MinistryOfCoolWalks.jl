@@ -58,7 +58,7 @@ end
 function hexagonify(polygon::ArchGDAL.IGeometry, hex_radius; buffer=0, danger_value=10000)
     poly_bounding_box = ArchGDAL.boundingbox(polygon)
     expected_hexes = floor(Int, ArchGDAL.geomarea(polygon) / hexagon_area(hex_radius, hex_radius))
-    @assert expected_hexes < danger_value "there are going to be about $expected_hexes in this cover. That is more than 1000"
+    @assert expected_hexes < danger_value "there are going to be about $expected_hexes in this cover. That is more than $danger_value"
     @info "hexagonification with about $expected_hexes expected hexes."
 
     start_hex = @chain polygon begin
