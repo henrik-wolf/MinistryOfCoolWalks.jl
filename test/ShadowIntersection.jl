@@ -1,18 +1,22 @@
 @testset "shadow intersection" begin
     @testset "combine_lines" begin
-
+        # TODO: Add tests for combine_lines
+        @test_skip "Add tests for combine_lines"
     end
 
     @testset "combine_along_tree" begin
-
+        # TODO: Add tests for combine_along_tree
+        @test_skip "Add tests for combine_along_tree"
     end
 
     @testset "rebuild_lines" begin
-
+        # TODO: Add tests for rebuild_lines
+        @test_skip "Add tests for rebuild_lines"
     end
 
     @testset "get_length_by_buffering" begin
-
+        # TODO: add tests for get_length_by_buffering
+        @test_skip "Add tests for get_length_by_buffering"
     end
 
     @testset "add_shadow_intervals!" begin

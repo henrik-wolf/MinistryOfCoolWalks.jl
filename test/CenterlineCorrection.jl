@@ -1,7 +1,8 @@
 @testset "centerline correction" begin
 
     @testset "node_directions" begin
-        println("you need to add tests for node_directions")
+        # TODO: Add tests for node_directions
+        @test_skip "Add tests for node_directions"
     end
 
     @testset "offset_line" begin
@@ -45,7 +46,8 @@
         @test ArchGDAL.distance(l3p, line3) ≈ 0.2
         @test ArchGDAL.distance(l3n, line3) ≈ 0.1
 
-        println("you need to add tests for selfintersecting offsets")
+        # TODO: Add tests for self intersecting offsets
+        @test_skip "Add tests for selfintersecting offsets"
     end
 
     @testset "guess_offset_distance" begin
