@@ -11,8 +11,13 @@ using SimpleWeightedGraphs
 using ProgressMeter
 using SpatialIndexing
 using Setfield
+using Hexagons
+using Chain
 
 import ShadowGraphs: EdgeGeomType
+
+# fix ambiguities coming from Hexagons
+import Graphs: vertices, neighbors
 
 
 """
@@ -91,4 +96,7 @@ include("CenterlineCorrection.jl")
 
 export felt_length, real_length, ShadowWeights, ShadowWeightsLight, reevaluate_distances
 include("Routing.jl")
+
+export hexagonify, hexes2polys, hexagon_histogram
+include("HexagonalBins.jl")
 end

@@ -13,3 +13,4 @@ using Test
 include("CenterlineCorrection.jl")
 include("ShadowIntersection.jl")
 include("Routing.jl")
+include("HexagonalBins.jl")
