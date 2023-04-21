@@ -65,7 +65,10 @@ function combine_lines(a, b, min_dist)
             elseif last_contained && !first_contained
                 b_indices = ngeom(b):-1:1 |> collect
             else
-                throw(ErrorException("the end point of a was $(first_contained ? "contained in both" : "not contained in either") one of the intervals it should have been contained in."))
+                @warn "the end point of a was $(first_contained ? "contained in both" : "not contained in either one") of the intervals. Somethings up."
+                println(ArchGDAL.toWKT(a))
+                println(ArchGDAL.toWKT(b))
+                b_indices = 1:1:ngeom(b) |> collect
             end
         end
 
@@ -307,20 +310,27 @@ function add_shadow_intervals!(g, shadows; clear_old_shadows=false)
 
         set_prop!(g, edge, :shadowgeom_segmented, full_shadow_segmented)
 
-        full_shadow = rebuild_lines(full_shadow_segmented, MIN_DIST)
-        reinterp_crs!(full_shadow, local_crs)
-        set_prop!(g, edge, :shadowgeom, full_shadow)
+        try
+            full_shadow = rebuild_lines(full_shadow_segmented, MIN_DIST)
+            reinterp_crs!(full_shadow, local_crs)
+            set_prop!(g, edge, :shadowgeom, full_shadow)
 
-        length_in_shadow = ArchGDAL.geomlength(full_shadow)
-        set_prop!(g, edge, :shadowed_length, length_in_shadow)
-        set_prop!(g, edge, :buffer_shadowed_length, get_length_by_buffering(full_shadow_segmented, 1e-3, 2, edge))
+            length_in_shadow = ArchGDAL.geomlength(full_shadow)
+            set_prop!(g, edge, :shadowed_length, length_in_shadow)
+            set_prop!(g, edge, :buffer_shadowed_length, get_length_by_buffering(full_shadow_segmented, 1e-3, 2, edge))
 
-        push!(df, Dict(
-                :edge => get_prop(g, edge, :osm_id),
-                :sl => get_prop(g, edge, :shadowed_length),
-                :fl => get_prop(g, edge, :full_length),
-                :g_edge => edge
-            ); cols=:union)
+            push!(df, Dict(
+                    :edge => get_prop(g, edge, :osm_id),
+                    :sl => get_prop(g, edge, :shadowed_length),
+                    :fl => get_prop(g, edge, :full_length),
+                    :g_edge => edge
+                ); cols=:union)
+        catch e
+            return full_shadow_segmented
+            @show edge
+            @show props(g, edge)
+            rethrow(e)
+        end
     end
     #project all stuff back
     project_back!(shadows.geometry)
