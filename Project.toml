@@ -22,6 +22,7 @@ TreeLoaders = "f47e3ccc-e4ba-4197-93dd-e1f87b2e9c3f"
 
 [compat]
 ArchGDAL = "0.9"
+Chain = "0.5"
 DataFrames = "1.4"
 GeoInterface = "1"
 Graphs = "1"
