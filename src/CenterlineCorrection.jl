@@ -71,8 +71,16 @@ function offset_line(line, distance)
         popat!(points, closest_index)
         popat!(node_dirs, closest_index)
 
+        final_points = points + closest_value * node_dirs
+
+        # check if this step would collaps the whole linestring into one point.
+        # If so, return a clone of the original.
+        if mapreduce(i -> i ≈ final_points[1], &, final_points)
+            return ArchGDAL.clone(line)
+        end
+
         new_line = ArchGDAL.createlinestring()
-        for point in points + closest_value * node_dirs
+        for point in final_points
             ArchGDAL.addpoint!(new_line, point...)
         end
         reinterp_crs!(new_line, ArchGDAL.getspatialref(line))
