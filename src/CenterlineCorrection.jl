@@ -36,7 +36,8 @@ creates new `ArchGDAL` linestring where all segments are offset parallel to the 
 Looking down the line (from the first segment to the second...), a positive distance moves the line to the right, a negative distance to the left.
 The line is expected to be in a projected coordinate system, which is going to be applied to the new, offset line as well.
 If, continious offsetting the length of a line segment where to reach a length of 0, the two adjacent points are automatically merged and offsetting
-is continued using the new configuration.
+is continued using the new configuration. Does account for self intersections created by the the endpoints crossing a line segment. In this case, only
+the closed part of the curve will be preserved.
 """
 function offset_line(line, distance)
     points = [collect(getcoord(p)) for p in getgeom(line)]
@@ -50,8 +51,14 @@ function offset_line(line, distance)
     max_offsets = dx ./ [i[1] for i in dd]
     oks = map(maxo -> sign(distance) != sign(maxo) || abs(distance) < abs(maxo), max_offsets)
     if reduce(&, oks)
+        final_points = points + distance * node_dirs
+        # check if the start or endpoints sliding over one another created intersection
+        self_inter, i, j, inter_point = is_selfintersecting(final_points)
+        if self_inter
+            final_points = [[inter_point]; final_points[i+1:j]; [inter_point]]
+        end
         new_line = ArchGDAL.createlinestring()
-        for point in points + distance * node_dirs
+        for point in final_points
             ArchGDAL.addpoint!(new_line, point...)
         end
         reinterp_crs!(new_line, ArchGDAL.getspatialref(line))
@@ -64,13 +71,55 @@ function offset_line(line, distance)
         popat!(points, closest_index)
         popat!(node_dirs, closest_index)
 
+        final_points = points + closest_value * node_dirs
+
+        # check if this step would collaps the whole linestring into one point.
+        # If so, return a clone of the original.
+        if mapreduce(i -> i ≈ final_points[1], &, final_points)
+            return ArchGDAL.clone(line)
+        end
+
         new_line = ArchGDAL.createlinestring()
-        for point in points + closest_value * node_dirs
+        for point in final_points
             ArchGDAL.addpoint!(new_line, point...)
         end
         reinterp_crs!(new_line, ArchGDAL.getspatialref(line))
         return offset_line(new_line, distance_remaining)
     end
+end
+
+function is_ccw(a, b, c)
+    return (a[1] * b[2] - a[2] * b[1] + a[2] * c[1] - a[1] * c[2] + b[1]c[2] - c[1]b[2]) > 0
+end
+
+function intersection_distance(a, b, c, d)
+    A = [b - a c - d]
+    # left division
+    return (A\(c-a))[1]
+end
+
+function is_selfintersecting(line)
+    points = [collect(getcoord(p)) for p in getgeom(line)]
+    return is_selfintersecting(points)
+end
+
+function is_selfintersecting(points::AbstractArray)
+    for i in 1:length(points)-3
+        a = points[i]
+        b = points[i+1]
+        for j in (i+2):(length(points)-1)
+            c1 = points[j]
+            c2 = points[j+1]
+            # xor
+            if is_ccw(a, b, c1) ⊻ is_ccw(a, b, c2)
+                inter_point = intersection_distance(a, b, c1, c2)
+                if 0.0 < inter_point < 1.0
+                    return true, i, j, (1 - inter_point) * a + inter_point * b
+                end
+            end
+        end
+    end
+    return false, 0, 0, [0.0, 0.0]
 end
 
 #TODO: make this more clevererererer

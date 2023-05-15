@@ -65,7 +65,10 @@ function combine_lines(a, b, min_dist)
             elseif last_contained && !first_contained
                 b_indices = ngeom(b):-1:1 |> collect
             else
-                throw(ErrorException("the end point of a was $(first_contained ? "contained in both" : "not contained in either") one of the intervals it should have been contained in."))
+                @warn "the end point of a was $(first_contained ? "contained in both" : "not contained in either one") of the intervals. Somethings up."
+                println(ArchGDAL.toWKT(a))
+                println(ArchGDAL.toWKT(b))
+                b_indices = 1:1:ngeom(b) |> collect
             end
         end
 
