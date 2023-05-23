@@ -3,8 +3,8 @@
     ShadowWeight(a::Float64, shade::Float64, sun::Float64) <: Real
 
 Typ representing the weight on one edge.
-- `a` represents the preference for shadow or sun, where `a==0.0` signifies indifference, `a ∈ (0.0, 1.0)` favours shaded edges,
-and `a ∈ (-1.0, 0.0)` favours sunny edges. Value must be in `(-1.0, 1.0)`, otherwise, an Error is thrown.
+- `a` represents the preference for shadow or sun, where `a==1.0` signifies indifference, `a ∈ (1.0, Inf)` favours shaded edges,
+and `a ∈ (0.0, 1.0)` favours sunny edges. Value must be in `(0.0, Inf)`, otherwise, an Error is thrown.
 - `shade` represents the (real world) length of the edge in shade. Has to be non-negative, otherwise, an Error is thrown.
 - `sun` represents the (real world) length of the edge in the sun. Has to be non-negative, otherwise, an Error is thrown.
 - if shade or sun is `Inf`, the other value has to be `Inf` as well, otherwise, an error is thrown.
@@ -19,14 +19,14 @@ struct ShadowWeight <: Real
     shade::Float64
     sun::Float64
     function ShadowWeight(a, shade, sun)
-        if -1.0 < a < 1.0
+        if 0.0 < a < Inf
             if 0.0 <= sun < Inf && 0.0 <= shade < Inf || sun == shade == Inf
                 return unsafe_ShadowWeight(a, shade, sun)
             else
                 error("shade and sun have to be non negative and finite or both Inf. (currently $shade and $sun)")
             end
         else
-            error("a can only be in (-1, 1) (currently: $a)")
+            error("a can only be in (0, Inf) (currently: $a)")
         end
     end
     global unsafe_ShadowWeight(a, shade, sun) = new(a, shade, sun)
@@ -40,7 +40,7 @@ end
 returns the zero value associated with the `ShadowWeight` Real. Equivalent to `ShadowWeight(0.0, 0.0, 0.0)`.
 """
 Base.zero(x::ShadowWeight) = zero(typeof(x))
-Base.zero(::Type{ShadowWeight}) = unsafe_ShadowWeight(0.0, 0.0, 0.0)
+Base.zero(::Type{ShadowWeight}) = unsafe_ShadowWeight(1.0, 0.0, 0.0)
 
 
 """
@@ -51,7 +51,7 @@ Base.zero(::Type{ShadowWeight}) = unsafe_ShadowWeight(0.0, 0.0, 0.0)
 returns the maximum value associated with the `ShadowWeight` Real. Equivalent to `ShadowWeight(0.0, Inf, Inf)`
 """
 Base.typemax(x::ShadowWeight) = typemax(typeof(x))
-Base.typemax(::Type{ShadowWeight}) = unsafe_ShadowWeight(0.0, Inf, Inf)
+Base.typemax(::Type{ShadowWeight}) = unsafe_ShadowWeight(1.0, Inf, Inf)
 
 """
 
@@ -65,9 +65,9 @@ real_length(w::ShadowWeight) = w.sun + w.shade
 
     felt_length(w::ShadowWeight)
 
-returns the felt length of a `ShadowWeight`. It is defined as: `(1 - a) * shade + (1 + a) * sun`
+returns the felt length of a `ShadowWeight`. It is defined as: `a * sun + shade`
 """
-@inline felt_length(w::ShadowWeight) = (1 - w.a) * w.shade + (1 + w.a) * w.sun
+@inline felt_length(w::ShadowWeight) = w.a * w.sun + w.shade
 
 """
 
@@ -126,10 +126,10 @@ struct ShadowWeights{T<:Integer,U<:Real} <: AbstractMatrix{ShadowWeight}
         max_U = typemax(U)
         max_full = mapreduce(<(max_U), &, full_weights; init=true)
         max_shade = mapreduce(<(max_U), &, shadow_weights; init=true)
-        if -1.0 < a < 1.0 && max_full && max_shade
+        if 0.0 < a < Inf && max_full && max_shade
             return new{T,U}(a, full_weights, shadow_weights)
         else
-            error("a can only be in (-1, 1) (currently: $a), weights have to be less than typemax($U)")
+            error("a can only be in (0.0, Inf) (currently: $a), weights have to be less than typemax($U)")
         end
     end
 end
@@ -139,7 +139,7 @@ end
 
     ShadowWeights(a, full_weights::I, shadow_weights::I) where {T<:Integer,U<:Real,I<:MetaGraphs.MetaWeights{T,U}}
 
-Base constructor for `ShadowWeights`. `a` has to be in `(-1.0, 1.0)`, otherwise an error will be thrown.
+Base constructor for `ShadowWeights`. `a` has to be in `(0.0, Inf)`, otherwise an error will be thrown.
 `full_weights` and `shadow_weights` are the full lengths of the edges and the length of these edges in shadow, respectively.
 Make sure that `all(shadow_weights .<= full_weights`) == true` for all edges which exist, otherwise, the results might not be what you expect.
 Constructor checks that `maximum(shadow_weights)<typemax(U)` and `maximum(full_weights)<typemax(U)`. (TODO: Maybe there is a faster way of doing this?)
@@ -184,17 +184,15 @@ end
 
     to_SimpleWeightedDiGraph(g, distmx)
 
-converts graph `g` with weights in `distmx` into `SimpleWeightedDiGraph` with weights from distmx.
+converts directed graph `g` with weights in `distmx` into `SimpleWeightedDiGraph` with weights from distmx.
+Due to the way we construct it here, edges with zero length are kept as structural nonzeros in the SWG.
 """
 function to_SimpleWeightedDiGraph(g, distmx=weights(g))
     if is_directed(g)
         s = src.(edges(g))
         d = dst.(edges(g))
     else
-        s1 = src.(edges(g))
-        d1 = dst.(edges(g))
-        s = [s1; d1]
-        d = [d1; s1]
+        throw(ArgumentError("$(typeof(g)) is not directed. Can not convert to SimpleWeightedDiGraph."))
     end
     ws = [distmx[s, d] for (s, d) in zip(s, d)]
     SimpleWeightedDiGraph(s, d, ws)
@@ -206,7 +204,8 @@ end
     Graphs.johnson_shortest_paths(g::AbstractGraph{U}, distmx::AbstractMatrix{T}) where {U<:Integer,T<:ShadowWeight}
 
 version of `johnson_shortest_paths` for `distmx` with `ShadowWeight` as entries, since we can not subtract these.
-Converts the graph and weights to `SimpleWeightedDiGraph`, to speed up the calculation and abstract away the complexity.
+Converts the graph and weights to `SimpleWeightedDiGraph` (while making sure that zero length edges are not dropped (see `to_SimpleWeightedDiGraph`)),
+to speed up the calculation and abstract away the complexity.
 (In reality, this is just a bunch of `dijkstra_shortest_paths`, wrapped to return a `JohnsonState`).
 """
 function Graphs.johnson_shortest_paths(g::AbstractGraph{U}, distmx::AbstractMatrix{T}) where {U<:Integer,T<:ShadowWeight}
@@ -239,10 +238,10 @@ struct ShadowWeightsLight{T<:Integer,U<:Real} <: AbstractMatrix{U}
         max_U = typemax(U)
         max_full = mapreduce(<(max_U), &, geom_weights; init=true)
         max_shade = mapreduce(<(max_U), &, shadow_weights; init=true)
-        if -1.0 < a < 1.0 && max_full && max_shade
+        if 0.0 < a < Inf && max_full && max_shade
             return new{T,U}(a, geom_weights, shadow_weights)
         else
-            error("a can only be in (-1, 1) (currently: $a), weights have to be less than typemax($U)")
+            error("a can only be in (0.0, Inf) (currently: $a), weights have to be less than typemax($U)")
         end
     end
 end
@@ -252,7 +251,7 @@ end
 
     ShadowWeightsLight(a, geom_weights::I, shadow_weights::I) where {T<:Integer,U<:Real,I<:MetaGraphs.MetaWeights{T,U}}
 
-Base constructor for `ShadowWeightsLight`. `a` has to be in `(-1.0, 1.0)`, otherwise an error will be thrown.
+Base constructor for `ShadowWeightsLight`. `a` has to be in `(0.0, Inf)`, otherwise an error will be thrown.
 `geom_weights` and `shadow_weights` are the full lengths of the edges and the length of these edges in shadow, respectively.
 Make sure that `all(shadow_weights .<= geom_weights) == true`, otherwise, the results might not be what you expect.
 Constructor checks that `maximum(shadow_weights)<typemax(U)` and `maximum(full_weights)<typemax(U)`. (TODO: Maybe there is a faster way of doing this?)
@@ -279,14 +278,14 @@ Base.show(io::IO, z::MIME"text/plain", x::ShadowWeightsLight) = show(io, x)
 
 Get the length of an edge from u to v in the `felt_length`, defined as:
 
-`(1 - w.a) * shadow_length + (1 + w.a) * sun_length`. `a` represents the preference for shadow or sun,
-where `a==0.0` signifies indifference, `a ∈ (0.0, 1.0)` favours shaded edges, and `a ∈ (-1.0, 0.0)` favours sunny edges.
+`a * sun_length + shadow_length`. `a` represents the preference for shadow or sun,
+where `a==1.0` signifies indifference, `a ∈ (0.0, Inf)` favours shaded edges, and `a ∈ (0.0, 1.0)` favours sunny edges.
 """
 function Base.getindex(w::ShadowWeightsLight{T,U}, u::Integer, v::Integer)::U where {T<:Integer} where {U<:Real}
     shadow_length = w.shadow_weights[u, v]
     sun_length = abs(w.geom_weights[u, v] - shadow_length)
 
-    weight = (1 - w.a) * shadow_length + (1 + w.a) * sun_length
+    weight = shadow_length + w.a * sun_length
     return U(weight)
 end
 
