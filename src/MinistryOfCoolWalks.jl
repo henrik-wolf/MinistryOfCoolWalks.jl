@@ -102,6 +102,6 @@ include("Routing.jl")
 export hexagonify, hexes2polys, hexagon_histogram
 include("HexagonalBins.jl")
 
-export early_stopping_dijkstra
+export early_stopping_dijkstra, betweenness_centralities
 include("RoutingMeasures.jl")
 end
