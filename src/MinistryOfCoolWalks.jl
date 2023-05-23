@@ -13,6 +13,8 @@ using SpatialIndexing
 using Setfield
 using Hexagons
 using Chain
+using DataStructures
+using SparseArrays
 
 import ShadowGraphs: EdgeGeomType
 
