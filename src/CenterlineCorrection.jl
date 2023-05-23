@@ -88,16 +88,6 @@ function offset_line(line, distance)
     end
 end
 
-function is_ccw(a, b, c)
-    return (a[1] * b[2] - a[2] * b[1] + a[2] * c[1] - a[1] * c[2] + b[1]c[2] - c[1]b[2]) > 0
-end
-
-function intersection_distance(a, b, c, d)
-    A = [b - a c - d]
-    # left division
-    return (A\(c-a))[1]
-end
-
 function is_selfintersecting(line)
     points = [collect(getcoord(p)) for p in getgeom(line)]
     return is_selfintersecting(points)
@@ -111,8 +101,8 @@ function is_selfintersecting(points::AbstractArray)
             c1 = points[j]
             c2 = points[j+1]
             # xor
-            if is_ccw(a, b, c1) ⊻ is_ccw(a, b, c2)
-                inter_point = intersection_distance(a, b, c1, c2)
+            if switches_side(a, b, c1, c2)
+                inter_point = intersection_distance(a, b, c1, c2)[1]
                 if 0.0 < inter_point < 1.0
                     return true, i, j, (1 - inter_point) * a + inter_point * b
                 end
