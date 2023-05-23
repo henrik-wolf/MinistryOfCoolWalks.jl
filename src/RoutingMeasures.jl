@@ -1,4 +1,72 @@
-function early_stopping_dijkstra(g, s, distmx=weights(g))
+"""
+
+    early_stopping_dijkstra(g::AbstractGraph, s::U, distmx::AbstractMatrix{T}=weights(g); max_length::T=typemax(T)) where {T<:Real,U<:Integer}
+
+Calculates dijkstras shortest paths, but treats edges which would make the shortest path longer than `max_length` as non-existent.
+
+Nearly all of this code was taken from the [Graphs.jl dijkstra implementation](https://github.com/JuliaGraphs/Graphs.jl/blob/a10ca671a209011f268d0770d36202dbae3029f7/src/shortestpaths/dijkstra.jl#L70).
+
+Behaves like `dijkstra_shortest_paths(g, i; trackvertices=true)`, if all other arguments are omitted.
+"""
+function early_stopping_dijkstra(g::AbstractGraph, s::U, distmx::AbstractMatrix{T}=weights(g); max_length::T=typemax(T)) where {T<:Real,U<:Integer}
+    nvg = nv(g)
+    dists = fill(typemax(T), nvg)
+    parents = zeros(U, nvg)
+    visited = zeros(Bool, nvg)
+
+    pathcounts = zeros(nvg)
+    preds = fill(Vector{U}(), nvg)
+    H = PriorityQueue{U,T}()
+    # fill creates only one array.
+
+    dists[s] = zero(T)
+    visited[s] = true
+    pathcounts[s] = one(Float64)
+    H[s] = zero(T)
+
+    closest_vertices = Vector{U}()  # Maintains vertices in order of distances from source
+    sizehint!(closest_vertices, nvg)
+
+    while !isempty(H)
+        u = dequeue!(H)
+
+        push!(closest_vertices, u)
+
+        d = dists[u] # Cannot be typemax if `u` is in the queue
+        for v in outneighbors(g, u)
+            alt = d + distmx[u, v]
+            alt > max_length && continue
+
+            if !visited[v]
+                visited[v] = true
+                dists[v] = alt
+                parents[v] = u
+
+                pathcounts[v] += pathcounts[u]
+                H[v] = alt
+            elseif alt < dists[v]
+                dists[v] = alt
+                parents[v] = u
+                #615
+                pathcounts[v] = pathcounts[u]
+                H[v] = alt
+            elseif alt == dists[v]
+                pathcounts[v] += pathcounts[u]
+            end
+        end
+    end
+
+    for s in vertices(g)
+        if !visited[s]
+            push!(closest_vertices, s)
+        end
+    end
+
+    pathcounts[s] = one(Float64)
+    parents[s] = 0
+    empty!(preds[s])
+
+    return Graphs.DijkstraState{T,U}(parents, dists, preds, pathcounts, closest_vertices)
 end
 
 
@@ -41,4 +109,39 @@ function Graphs.johnson_shortest_paths(g::AbstractGraph{U}, distmx::AbstractMatr
         parents[v, :] = dijk_state.parents
     end
     return Graphs.JohnsonState(dists, parents)
+end
+
+"""
+
+    betweenness_centralities(state, start)
+
+Calculates the node and edge betweennesses encoded in the dijkstra `state`, with shortest paths from `s`.
+Assumes all paths to be unique (does not use to `state.predecessors`) field.
+Does not include the endpoints, and is not normalised.
+Most of this code was taken from the [Graphs.jl betweenness_centrality implementation](https://github.com/JuliaGraphs/Graphs.jl/blob/a10ca671a209011f268d0770d36202dbae3029f7/src/centrality/betweenness.jl#L45).
+"""
+function betweenness_centralities(state::Graphs.DijkstraState, s::T) where {T<:Integer}
+    n_v = length(state.parents) # this is the ttl number of vertices
+    vertex_betweenness = spzeros(n_v)
+    edge_betweenness = spzeros(n_v, n_v)
+
+    δ = zeros(n_v)
+    P = state.parents
+
+    # make sure the source index has no parents.
+    P[s] = 0
+    # we need to order the source vertices by decreasing distance for this to work.
+    S = reverse(state.closest_vertices) #Replaced sortperm with this
+    for w in S
+        coeff = (1.0 + δ[w])
+        v = P[w]
+        if v > 0
+            δ[v] += coeff
+            edge_betweenness[v, w] += coeff
+        end
+        if w != s
+            vertex_betweenness[w] += δ[w]
+        end
+    end
+    return vertex_betweenness, edge_betweenness
 end
