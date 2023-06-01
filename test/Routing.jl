@@ -176,6 +176,13 @@ b(a) = (1 + a) / (1 - a)
         @test_throws AssertionError s1 + s3
     end
 
+    @testset "multiplication with bool" begin
+        @test zero(ShadowWeight) == (ShadowWeight(4.5, 104.6, 554.0) * false)
+        @test zero(ShadowWeight) == (false * ShadowWeight(4.5, 104.6, 554.0))
+        @test ShadowWeight(4.5, 104.6, 554.0) == (ShadowWeight(4.5, 104.6, 554.0) * true)
+        @test ShadowWeight(4.5, 104.6, 554.0) == (true * ShadowWeight(4.5, 104.6, 554.0))
+    end
+
     @testset "ShadowWeights" begin
         g = MetaDiGraph(random_regular_digraph(100, 4))
         @test ShadowWeights(0.4 |> b, weights(g), weights(g)) isa ShadowWeights
@@ -373,10 +380,13 @@ b(a) = (1 + a) / (1 - a)
 
     @testset "johnson_shortest_paths" begin
         ##### TRIANGLE GRAPH #####
-        g = MetaGraph(3, :full_length, 0.0)
+        g = MetaDiGraph(3, :full_length, 0.0)
         add_edge!(g, 1, 2, Dict(:full_length => 1.0, :shadowed_length => 0.9))
+        add_edge!(g, 2, 1, Dict(:full_length => 1.0, :shadowed_length => 0.9))
         add_edge!(g, 2, 3, Dict(:full_length => 1.0, :shadowed_length => 0.5))
+        add_edge!(g, 3, 2, Dict(:full_length => 1.0, :shadowed_length => 0.5))
         add_edge!(g, 3, 1, Dict(:full_length => 1.0, :shadowed_length => 0.1))
+        add_edge!(g, 1, 3, Dict(:full_length => 1.0, :shadowed_length => 0.1))
         run_johnson_test_on(g)
 
         ### KARATE GRAPH ###
