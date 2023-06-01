@@ -121,6 +121,7 @@ Does not include the endpoints, and is not normalised.
 Most of this code was taken from the [Graphs.jl betweenness_centrality implementation](https://github.com/JuliaGraphs/Graphs.jl/blob/a10ca671a209011f268d0770d36202dbae3029f7/src/centrality/betweenness.jl#L45).
 """
 function betweenness_centralities(state::Graphs.DijkstraState, s::T) where {T<:Integer}
+    #TODO: make this function usable
     @warn "the betweenness is still a bit dodgy if you only want to include some destinations. Do fix this before use..."
     n_v = length(state.parents) # this is the ttl number of vertices
     vertex_betweenness = spzeros(n_v)
