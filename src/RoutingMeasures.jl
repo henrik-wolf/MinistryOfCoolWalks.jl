@@ -91,20 +91,20 @@ end
 #### Our own, low budget implementation of the johnson_shortest_paths because we can not subtract ShadowWeights.
 """
 
-    Graphs.johnson_shortest_paths(g::AbstractGraph{U}, distmx::AbstractMatrix{T}) where {U<:Integer,T<:ShadowWeight}
+    Graphs.johnson_shortest_paths(g::AbstractGraph{U}, distmx::AbstractMatrix{T}; max_length=typemax(T)) where {U<:Integer,T<:ShadowWeight}
 
 version of `johnson_shortest_paths` for `distmx` with `ShadowWeight` as entries, since we can not subtract these.
 Converts the graph and weights to `SimpleWeightedDiGraph` (while making sure that zero length edges are not dropped (see `to_SimpleWeightedDiGraph`)),
 to speed up the calculation and abstract away the complexity.
-(In reality, this is just a bunch of `dijkstra_shortest_paths`, wrapped to return a `JohnsonState`).
+(In reality, this is just a bunch of `early_stopping_dijkstra`, wrapped to return a `JohnsonState`).
 """
-function Graphs.johnson_shortest_paths(g::AbstractGraph{U}, distmx::AbstractMatrix{T}) where {U<:Integer,T<:ShadowWeight}
+function Graphs.johnson_shortest_paths(g::AbstractGraph{U}, distmx::AbstractMatrix{T}; max_length=typemax(T)) where {U<:Integer,T<:ShadowWeight}
     g = to_SimpleWeightedDiGraph(g, distmx)
     nvg = nv(g)
     dists = Matrix{T}(undef, nvg, nvg)
     parents = Matrix{U}(undef, nvg, nvg)
     @showprogress 1 "johnson_shortest_paths" for v in vertices(g)
-        dijk_state = dijkstra_shortest_paths(g, v)
+        dijk_state = early_stopping_dijkstra(g, v; max_length=max_length)
         dists[v, :] = dijk_state.dists
         parents[v, :] = dijk_state.parents
     end
@@ -121,6 +121,7 @@ Does not include the endpoints, and is not normalised.
 Most of this code was taken from the [Graphs.jl betweenness_centrality implementation](https://github.com/JuliaGraphs/Graphs.jl/blob/a10ca671a209011f268d0770d36202dbae3029f7/src/centrality/betweenness.jl#L45).
 """
 function betweenness_centralities(state::Graphs.DijkstraState, s::T) where {T<:Integer}
+    @warn "the betweenness is still a bit dodgy if you only want to include some destinations. Do fix this before use..."
     n_v = length(state.parents) # this is the ttl number of vertices
     vertex_betweenness = spzeros(n_v)
     edge_betweenness = spzeros(n_v, n_v)
@@ -144,4 +145,28 @@ function betweenness_centralities(state::Graphs.DijkstraState, s::T) where {T<:I
         end
     end
     return vertex_betweenness, edge_betweenness
+end
+
+"""
+
+    edges_visited(state::Graphs.DijkstraState, reachables::BitArray)
+
+Efficiently calculates all the edges traversed by the paths, considering only destinations `i` where `reachables[i]==true`.
+"""
+function edges_visited(state, reachables)
+    parents = state.parents
+    p_trunc = zeros(Int, length(reachables))
+    for dest_ind in findall(reachables)
+        prev_ind = parents[dest_ind]
+        while prev_ind != 0
+            if p_trunc[dest_ind] == 0
+                p_trunc[dest_ind] = prev_ind
+            else
+                break
+            end
+            dest_ind = prev_ind
+            prev_ind = parents[dest_ind]
+        end
+    end
+    return filter!(e -> src(e) != 0, Edge.(p_trunc, eachindex(p_trunc)))
 end
