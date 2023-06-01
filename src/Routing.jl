@@ -110,6 +110,15 @@ we ignore the condition of the `a` fields having to be the same and return just 
     return unsafe_ShadowWeight(a.a, a.shade + b.shade, a.sun + b.sun)
 end
 
+"""
+
+    *(a::ShadowWeight, b::Bool)
+    *(a::Bool, b::ShadowWeight)
+
+Multiplication with Boolean. Returns `a` if `b` is true, otherwise `zero(ShadowWeight)`.
+"""
+Base.:*(a::ShadowWeight, b::Bool) = b ? a : zero(ShadowWeight)
+Base.:*(a::Bool, b::ShadowWeight) = b * a
 
 """
 
