@@ -22,6 +22,53 @@ datapath = joinpath(homedir(), "Desktop/Masterarbeit/data/Nottingham/")
 buildings = load_british_shapefiles(joinpath(datapath, "Nottingham.shp"); bbox=(minlon=-1.2, minlat=52.89, maxlon=-1.165, maxlat=52.92))
 g = shadow_graph_from_file(joinpath(datapath, "clifton/test_clifton_bike.json"); network_type=:bike)
 
+g2 = SimpleWeightedDiGraph([1, 2, 3, 3], [2, 3, 1, 4], [1, 5, 2, Inf])
+weights(g2)
+
+
+dijkstra_shortest_paths(g2, 1) |> enumerate_paths
+
+early_stopping_dijkstra(g2, 1; max_length=7.0) |> enumerate_paths
+
+
+s1 = dijkstra_shortest_paths(g, 1, ShadowWeights(g, 3.5), allpaths=true, trackvertices=true)
+s2 = early_stopping_dijkstra(g, 1, ShadowWeights(g, 1.0); max_length=MinistryOfCoolWalks.ShadowWeight(1.0, 0, 1500))
+
+
+@benchmark vbb = betweenness_centrality(g, [1], normalize=false)
+@benchmark vb, eb = MinistryOfCoolWalks.betweenness_centralities(dijkstra_shortest_paths(g, 1, trackvertices=true), 1)
+
+all(vbb .== vb)
+
+s1.pathcounts |> maximum
+
+count(==(0), s1.parents)
+
+s1.predecessors
+s1.parents
+
+ws = ShadowWeights(g, 3.5) |> sparse
+g3 = MinistryOfCoolWalks.to_SimpleWeightedDiGraph(g, ws)
+
+@benchmark dijkstra_shortest_paths(g, 1, ws, trackvertices=true)
+@benchmark early_stopping_dijkstra(g, 1, ws; max_length=MinistryOfCoolWalks.ShadowWeight(3.5, 0, 1500))
+
+@benchmark dijkstra_shortest_paths(g3, 1, trackvertices=true)
+@benchmark early_stopping_dijkstra(g3, 1; max_length=MinistryOfCoolWalks.ShadowWeight(3.5, 0, 1500))
+
+x = filter(d -> felt_length(d) < 3.5 * 1500, s1.dists)
+y = filter(d -> felt_length(d) < 3.5 * 10500, s2.dists)
+
+all(x .== y)
+
+maximum(l -> l == Inf ? 0.0 : l, felt_length.(s2.dists))
+
+for i in fieldnames(typeof(s1))
+    @show i
+    @show all(getfield(s1, i) .== getfield(s2, i))
+end
+
+
 
 
 sort!(buildings, :geometry, by=b -> ngeom(getgeom(b, 1)))

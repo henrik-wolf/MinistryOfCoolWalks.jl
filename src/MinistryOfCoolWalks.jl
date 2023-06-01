@@ -13,6 +13,8 @@ using SpatialIndexing
 using Setfield
 using Hexagons
 using Chain
+using DataStructures
+using SparseArrays
 
 import ShadowGraphs: EdgeGeomType
 
@@ -94,9 +96,12 @@ include("ShadowIntersection.jl")
 export correct_centerlines!
 include("CenterlineCorrection.jl")
 
-export felt_length, real_length, ShadowWeights, ShadowWeightsLight, reevaluate_distances
+export felt_length, real_length, ShadowWeights, ShadowWeight, ShadowWeightsLight, reevaluate_distances
 include("Routing.jl")
 
 export hexagonify, hexes2polys, hexagon_histogram
 include("HexagonalBins.jl")
+
+export early_stopping_dijkstra, betweenness_centralities, edges_visited
+include("RoutingMeasures.jl")
 end
