@@ -254,8 +254,8 @@ We also update the locations of the helper nodes, to reflect the offset lines, a
 """
 function correct_centerlines!(g, buildings, assumed_lane_width=3.5, scale_factor=1.0)
     # project all stuff into local system
-    center_lon = metadata(buildings, "center_lon")::Float64
-    center_lat = metadata(buildings, "center_lat")::Float64
+    center_lon = get_prop(g, :center_lon)::Float64
+    center_lat = get_prop(g, :center_lat)::Float64
 
     project_local!(buildings.geometry, center_lon, center_lat)
     project_local!(g, center_lon, center_lat)

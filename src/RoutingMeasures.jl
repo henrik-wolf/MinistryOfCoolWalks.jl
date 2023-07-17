@@ -150,12 +150,13 @@ end
 
 """
 
+    edges_visited(parents::AbstractArray, reachables::BitArray)
     edges_visited(state::Graphs.DijkstraState, reachables::BitArray)
 
 Efficiently calculates all the edges traversed by the paths, considering only destinations `i` where `reachables[i]==true`.
 """
-function edges_visited(state, reachables)
-    parents = state.parents
+edges_visited(state::Graphs.DijkstraState, reachables) = edges_visited(state.parents, reachables)
+function edges_visited(parents::AbstractArray, reachables)
     p_trunc = zeros(Int, length(reachables))
     for dest_ind in findall(reachables)
         prev_ind = parents[dest_ind]

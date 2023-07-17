@@ -99,7 +99,7 @@ include("CenterlineCorrection.jl")
 export felt_length, real_length, ShadowWeights, ShadowWeight, ShadowWeightsLight, reevaluate_distances
 include("Routing.jl")
 
-export hexagonify, hexes2polys, hexagon_histogram
+export hexagonify, hexes2polys, hexagon_histogram, hexagon_area
 include("HexagonalBins.jl")
 
 export early_stopping_dijkstra, betweenness_centralities, edges_visited

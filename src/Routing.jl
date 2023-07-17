@@ -120,6 +120,13 @@ Multiplication with Boolean. Returns `a` if `b` is true, otherwise `zero(ShadowW
 Base.:*(a::ShadowWeight, b::Bool) = b ? a : zero(ShadowWeight)
 Base.:*(a::Bool, b::ShadowWeight) = b * a
 
+Base.:*(a::AbstractFloat, b::ShadowWeight) = ShadowWeight(b.a, a * b.shade, a * b.sun)
+Base.:*(a::ShadowWeight, b::AbstractFloat) = b * a
+Base.:*(a::Integer, b::ShadowWeight) = ShadowWeight(b.a, a * b.shade, a * b.sun)
+Base.:*(a::ShadowWeight, b::Integer) = b * a
+
+
+
 """
 
     ShadowWeights{T<:Integer,U<:Real} <: AbstractMatrix{ShadowWeight}
