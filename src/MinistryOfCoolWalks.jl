@@ -8,7 +8,10 @@ using CompositeBuildings
 using Graphs
 using MetaGraphs
 using SimpleWeightedGraphs
+
 using ProgressMeter
+using ProgressBars
+
 using SpatialIndexing
 using Setfield
 using Hexagons
@@ -16,14 +19,14 @@ using Chain
 using DataStructures
 using SparseArrays
 
-import ShadowGraphs: EdgeGeomType
+
+const EdgeGeomType = Union{ArchGDAL.IGeometry{ArchGDAL.wkbLineString},ArchGDAL.IGeometry{ArchGDAL.wkbMultiLineString}}
 
 # fix ambiguities coming from Hexagons
 import Graphs: vertices, neighbors
 
 
 """
-
     DEFAULT_LANES_ONEWAY 
 
 default number of lanes in one direction of the street, by `highway` type. Used when there is no data available in the `tags`.
@@ -55,7 +58,6 @@ const DEFAULT_LANES_ONEWAY = Dict(
 
 
 """
-
     HIGHWAYS_OFFSET
 
 list of `highway`s, which should be offset to the edge of the street.
@@ -75,7 +77,6 @@ const HIGHWAYS_OFFSET = [
     "road"]
 
 """
-
     HIGHWAYS_NOT_OFFSET
 
 list of `highway`s, which should not be offset, usually because they can allready considered the center of a bikepath/sidewalk/footpath...
@@ -88,7 +89,6 @@ const HIGHWAYS_NOT_OFFSET = [
     "pedestrian",
     "cycleway"]
 
-export sunposition  # imported from CoolWalksUtils
 
 export add_shadow_intervals!, check_shadow_angle_integrity, npoints
 include("ShadowIntersection.jl")
