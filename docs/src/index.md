@@ -6,7 +6,7 @@ CurrentModule = MinistryOfCoolWalks
 
 Documentation for [MinistryOfCoolWalks](https://github.com/SuperGrobi/MinistryOfCoolWalks.jl).
 
-## Constants
+# API
 
 ```@index
 Pages = ["index.md"]
