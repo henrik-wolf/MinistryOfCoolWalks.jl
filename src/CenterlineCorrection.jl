@@ -1,5 +1,70 @@
 """
+    DEFAULT_LANES_ONEWAY 
 
+default number of lanes in one direction of the street, by `highway` type. Used when there is no data available in the `tags`.
+"""
+const DEFAULT_LANES_ONEWAY = Dict(
+    "tertiary" => 1,
+    "residential" => 1,
+    "trunk" => 3,
+    "trunk_link" => 3,
+    "service" => 1,
+    "living_street" => 1,
+    "primary" => 2,
+    "secondary" => 2,
+    "tertiary_link" => 1,
+    "primary_link" => 2,
+    "secondary_link" => 2,
+    "road" => 1
+)
+#=DEFAULT_LANES = Dict(
+    "motorway" => 3,
+    "trunk" => 3,
+    "primary" => 2,
+    "secondary" => 2,
+    "tertiary" => 1,
+    "unclassified" => 1,
+    "residential" => 1,
+    "other" => 1
+)=#
+
+
+"""
+    HIGHWAYS_OFFSET
+
+list of `highway`s, which should be offset to the edge of the street.
+"""
+const HIGHWAYS_OFFSET = [
+    "tertiary",
+    "residential",
+    "trunk",
+    "trunk_link",
+    "service",
+    "living_street",
+    "primary",
+    "secondary",
+    "tertiary_link",
+    "primary_link",
+    "secondary_link",
+    "road"]
+
+
+"""
+    HIGHWAYS_NOT_OFFSET
+
+list of `highway`s, which should not be offset, usually because they can allready considered the center of a bikepath/sidewalk/footpath...
+"""
+const HIGHWAYS_NOT_OFFSET = [
+    "unclassified",
+    "path",
+    "bridleway",
+    "track",
+    "pedestrian",
+    "cycleway"]
+
+
+
+"""
     node_directions(x, y)
 
 calculates the (scaled) direction in which the nodes given by 'x' and 'y' coordinates need to be offset, such that the connections between the nodes remain
@@ -228,11 +293,10 @@ end
 
 
 """
-
     correct_centerlines!(g, buildings, assumed_lane_width=3.5, scale_factor=1.0)
 
-offsets the centerlines of streets (edges in `g`) stored in the edge prop `:edgegeom_base`, to the estimated edge of the street and stores the
-result in `:edgegeom`.
+offsets the centerlines of streets (edges in `g`) stored in the edge prop `:eg_geometry_base`, to the estimated edge of the street and stores the
+result in `:sg_street_geometry`.
 
 Repeated application of this function deletes all edgeprops added after loading the graph, or the last application of `correct_centerline`, apart from
 `[:osm_id, :tags, :edgegeom, :edgegeom_base, :full_length, :parsing_direction, :helper]`.
