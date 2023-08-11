@@ -1,7 +1,7 @@
 """
     DEFAULT_LANES_ONEWAY 
 
-default number of lanes in one direction of the street, by `highway` type. Used when there is no data available in the `tags`.
+default number of lanes in one direction of the street, by `highway` type. Used as a fallback when there is no data available in the `tags`.
 """
 const DEFAULT_LANES_ONEWAY = Dict(
     "tertiary" => 1,
@@ -178,7 +178,7 @@ function is_selfintersecting(points::AbstractArray)
 end
 
 #TODO: make this more clevererererer
-""""
+"""
 
     guess_offset_distance(g, edge::Edge, assumed_lane_width=3.5)
 
