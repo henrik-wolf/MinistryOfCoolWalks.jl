@@ -21,15 +21,10 @@ using SparseArrays
 using LinearAlgebra
 
 
-# TODO: Rework HexagonalBins
-
 const EdgeGeomType = Union{ArchGDAL.IGeometry{ArchGDAL.wkbLineString},ArchGDAL.IGeometry{ArchGDAL.wkbMultiLineString}}
 
 # fix ambiguities coming from Hexagons
 import Graphs: vertices, neighbors
-
-
-
 
 
 export add_shadow_intervals!, check_shadow_angle_integrity
