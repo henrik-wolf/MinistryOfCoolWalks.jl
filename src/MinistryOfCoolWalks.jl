@@ -22,8 +22,6 @@ using LinearAlgebra
 
 
 # TODO: Rework HexagonalBins
-# TODO: Rework Routing
-# TODO: Rework RoutingMeasures
 
 const EdgeGeomType = Union{ArchGDAL.IGeometry{ArchGDAL.wkbLineString},ArchGDAL.IGeometry{ArchGDAL.wkbMultiLineString}}
 
@@ -40,7 +38,7 @@ include("ShadowIntersection.jl")
 export correct_centerlines!
 include("CenterlineCorrection.jl")
 
-export felt_length, real_length, ShadowWeights
+export felt_length, real_length, ShadowWeights, ShadowWeight
 include("Routing.jl")
 
 export hexagonify, hexes2polys, hexagon_histogram, hexagon_area
