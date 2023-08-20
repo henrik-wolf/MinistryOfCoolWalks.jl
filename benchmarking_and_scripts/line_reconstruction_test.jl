@@ -21,7 +21,7 @@ lines_normal = add_shadow_intervals!(g, shadows)  # takes about 0:11 minutes
 line_ref = first([get_prop(g, edge, :shadowgeom) for edge in edges(g) if has_prop(g, edge, :osm_id) && get_prop(g, edge, :osm_id) == 29387571])
 lines = project_local!(ArchGDAL.clone(line_ref), -1, 53)
 size(adj)
-[adj[i,i] = false for i in 1:first(size(adj))]
+[adj[i, i] = false for i in 1:first(size(adj))]
 
 clines = collect(getgeom(lines))[1]
 collect(getgeom(clines))
@@ -61,7 +61,7 @@ plot!(combined, lw=3)
 plot!(collect(getgeom(combined)))
 
 function combine(tree, start)
-    mapfoldl(n->combine(tree, n), (x,y)->(x,y), neighbors(tree, start); init=start)
+    mapfoldl(n -> combine(tree, n), (x, y) -> (x, y), neighbors(tree, start); init=start)
 end
 
 combine(t1, 8)
@@ -80,11 +80,11 @@ begin
             display(p1)
         end
     end
-    p2 = heatmap(distances, transpose=false, yflip=true, clim=(0,3))
-    plot(p1, p2, size=(1000, 1500), layout=(2,1))
+    p2 = heatmap(distances, transpose=false, yflip=true, clim=(0, 3))
+    plot(p1, p2, size=(1000, 1500), layout=(2, 1))
 end
 
 using Test
-@testset "stuff" begin
+@testitem "stuff" begin
     @test geomtrait(rebuild_lines(getgeom(lines, 1), 1)) isa LineStringTrait
 end
