@@ -18,6 +18,7 @@ using Hexagons
 using Chain
 using DataStructures
 using SparseArrays
+using LinearAlgebra
 
 
 # TODO: Rework CenterlineCorrection
