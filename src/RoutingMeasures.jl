@@ -104,7 +104,7 @@ function Graphs.johnson_shortest_paths(g::AbstractGraph{U}, distmx::AbstractMatr
     pbar = ProgressBar(vertices(g), printing_delay=1.0)
     set_description(pbar, "johnson_shortest_paths")
 
-    for v in pbar
+    Threads.@threads for v in pbar
         dijk_state = early_stopping_dijkstra(g, v; max_length=max_length)
         dists[v, :] = dijk_state.dists
         parents[v, :] = dijk_state.parents

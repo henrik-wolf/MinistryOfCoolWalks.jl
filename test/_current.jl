@@ -813,3 +813,33 @@ MinistryOfCoolWalks.geos_rtree(sclift.geometry);
 
 @edit GeoInterface.convert(LibGEOS, mls)
 
+
+using MinistryOfCoolWalks
+using ShadowGraphs
+using CompositeBuildings
+using Graphs
+using MetaGraphs
+using Dates
+using BenchmarkTools
+using GeoInterface
+using ArchGDAL
+
+datapath = joinpath(@__DIR__, "data")
+
+bclift = load_british_shapefiles(joinpath(datapath, "clifton", "clifton_test.shp"))
+sclift = cast_shadows(bclift, DateTime(2023, 8, 20, 18, 45))
+gclift = shadow_graph_from_file(joinpath(datapath, "test_clifton_bike.json"); network_type=:bike)
+
+si1 = add_shadow_intervals!(gclift, sclift; clear_old_shadows=true)
+
+state = johnson_shortest_paths(gclift, ShadowWeights(gclift, 1.0))
+state2 = johnson_shortest_paths(gclift, ShadowWeights(gclift, 1.0))
+
+all(state.parents .== state2.parents)
+all(state.dists .== state2.dists)
+
+
+
+ws = ShadowWeights(gclift, 1.0)
+
+@benchmark johnson_shortest_paths(gclift, $ws)
