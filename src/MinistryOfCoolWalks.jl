@@ -21,7 +21,6 @@ using SparseArrays
 using LinearAlgebra
 
 
-# TODO: Rework CenterlineCorrection
 # TODO: Rework HexagonalBins
 # TODO: Rework Routing
 # TODO: Rework RoutingMeasures
@@ -41,7 +40,7 @@ include("ShadowIntersection.jl")
 export correct_centerlines!
 include("CenterlineCorrection.jl")
 
-export felt_length, real_length, ShadowWeights, ShadowWeight, ShadowWeightsLight, reevaluate_distances
+export felt_length, real_length, ShadowWeights
 include("Routing.jl")
 
 export hexagonify, hexes2polys, hexagon_histogram, hexagon_area
