@@ -1,14 +1,14 @@
-@testset "combine_lines" begin
+@testitem "combine_lines" begin
     # TODO: Add tests for combine_lines
     @test_skip "Add tests for combine_lines"
 end
 
-@testset "combine_along_tree" begin
+@testitem "combine_along_tree" begin
     # TODO: Add tests for combine_along_tree
     @test_skip "Add tests for combine_along_tree"
 end
 
-@testset "rebuild_lines" begin
+@testitem "rebuild_lines" begin
     # TODO: Add tests for rebuild_lines
     @test_skip "Add tests for rebuild_lines"
 end
