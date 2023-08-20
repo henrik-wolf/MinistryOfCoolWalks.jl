@@ -286,14 +286,14 @@ end
 """
     check_shadow_angle_integrity(g, max_angle)
 
-checks, if all angles in shadows in `g` are less than `max_angle` (in radians). If not, prints a warning.
+checks, if all angles in shadows (`:sg_shadow_geometry`) in `g` are less than `max_angle` (in radians). If not, prints a warning.
 Used to test if the shadow joining works as intended.
 """
 function check_shadow_angle_integrity(g, max_angle)
-    c = first(filter_vertices(g, :lon))
-    project_local!(g, get_prop(g, c, :lon), get_prop(g, c, :lat))
-    df = DataFrame((edge=e, shadowgeom=get_prop(g, e, :shadowgeom)) for e in filter_edges(g, :shadowgeom))
-    df.angles = angles_in.(df.shadowgeom)
+    project_local!(g)
+
+    df = DataFrame((edge=e, shadow_geometry=get_prop(g, e, :sg_shadow_geometry)) for e in filter_edges(g, :sg_shadow_geometry))
+    df.angles = angles_in.(df.shadow_geometry)
     df.all_less = all_less_than.(df.angles, max_angle)
     df.max_angle = map(a -> length(a) == 0 ? 0.0 : maximum(a), df.angles)
     no_problem = all(df.all_less)
@@ -341,16 +341,3 @@ end
 checks if all values in `angles` are less than `max_angle`.
 """
 all_less_than(angles, max_angle) = mapreduce(<(max_angle), &, angles, init=true)
-
-
-"""
-    npoints(line)
-    npoints(::LineStringTrait, line)
-    npoints(::MultiLineStringTrait, line)
-
-calculates the number of points in a line or multiline.
-"""
-npoints(line) = npoints(geomtrait(line), line)
-
-npoints(::LineStringTrait, line) = ngeom(line)
-npoints(::MultiLineStringTrait, line) = mapreduce(ngeom, +, getgeom(line))

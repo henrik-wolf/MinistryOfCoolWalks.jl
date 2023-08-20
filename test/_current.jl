@@ -703,11 +703,113 @@ plot!(ArchGDAL.convexhull(mycoll))
 plot(mycoll)
 
 
-
-
-using CoolWalksUtils
-
 hextree = build_rtree(building_hexes_poly);
 
 inter = intersects_with(hextree, rect_from_geom(buildings.geometry[1])) |> collect
+
+
+
+using MinistryOfCoolWalks
+using ShadowGraphs
+using CompositeBuildings
+using Graphs
+using MetaGraphs
+using Dates
+using BenchmarkTools
+using GeoInterface
+using ArchGDAL
+
+datapath = joinpath(@__DIR__, "data")
+
+bclift = load_british_shapefiles(joinpath(datapath, "clifton", "clifton_test.shp"))
+sclift = cast_shadows(bclift, DateTime(2023, 8, 20, 18, 45))
+gclift = shadow_graph_from_file(joinpath(datapath, "test_clifton_bike.json"); network_type=:bike)
+
+si1 = add_shadow_intervals!(gclift, sclift; clear_old_shadows=true)
+
+si2 = add_shadow_intervals2!(gclift, sclift; clear_old_shadows=true)
+
+all(si1.sl .≈ si2.sl)
+
+@profview add_shadow_intervals!(gclift, sclift; clear_old_shadows=true)
+
+@benchmark add_shadow_intervals!(gclift, sclift; clear_old_shadows=true)
+
+
+
+
+@benchmark add_shadow_intervals2!(gclift, sclift; clear_old_shadows=true)
+
+
+datapath = joinpath(homedir(), "desktop", "Masterarbeit", "CoolWalksAnalysis", "data", "exp_raw", "Manhattan")
+
+buildings = load_new_york_shapefiles(joinpath(datapath, "manhattan.shp"))
+s = cast_shadows(buildings, DateTime(2023, 8, 20, 18, 45))
+g = shadow_graph_from_file(joinpath(datapath, "manhattan_bike.json"); network_type=:bike)
+
+@profview add_shadow_intervals!(g, s; clear_old_shadows=true)
+@profview add_shadow_intervals2!(g, s; clear_old_shadows=true)
+
+p1 = ArchGDAL.buffer(ArchGDAL.createpoint(0, 0), 1)
+l1 = ArchGDAL.createlinestring([[2, 2], [3, 3]])
+
+ArchGDAL.intersection(p1, l1) |> GeoInterface.isempty
+
+orp = ArchGDAL.fromWKT("POLYGON ((-312.205063400532 1229.17017845651,-315.664068943654 1224.07743153864,-296.664934543686 1211.01724926313,-281.526614998919 1210.31444874484,-277.998242279976 1215.34632675072,-297.066743857025 1228.46737794389,-312.205063400532 1229.17017845651))")
+mls = ArchGDAL.fromWKT("MULTILINESTRING ((-306.067203778921 1240.97234468218,-305.168168665953 1242.02765025839,-301.057190064275 1247.04632623125,-297.11137096969 1248.8421341714))")
+sls = ArchGDAL.fromWKT("LINESTRING (-324.175608563644 1219.71633335411,-305.168168665953 1242.02765025839,-301.057190064275 1247.04632623125,-296.583104355651 1249.08255709938,-292.304076821534 1251.95343814608,-288.576775697916 1254.05649240959)")
+
+using Plots
+
+plot(orp)
+plot!(mls)
+plot!(sls)
+
+ArchGDAL.intersection(orp, sls) |> typeof
+
+MinistryOfCoolWalks.join
+
+
+function cra2(n)
+    nthreads = Threads.nthreads()
+    @info "Using $(nthreads) threads"
+    out = zeros(n, n)  # don't use falses, it's not thread safe ?!
+    p = [[[-1.0, -1], [+1, -1], [+1, +1], [-1, +1], [-1, -1]]]
+    g1 = [LibGEOS.Polygon(p) for i = 1:n]
+    g2 = [LibGEOS.clone.(g1) for i in 1:nthreads]
+    Threads.@threads for i = 1:n
+        for j = 1:n
+            ti = Threads.threadid()
+            out[i, j] = LibGEOS.intersects(g2[ti][i], g2[ti][j])
+        end
+    end
+    sum(out)
+end
+
+using LibGEOS
+
+cra2(19)
+
+nthreads = Threads.nthreads()
+@info "Using $(nthreads) threads"
+out = zeros(n, n)  # don't use falses, it's not thread safe ?!
+p = [[[-1.0, -1], [+1, -1], [+1, +1], [-1, +1], [-1, -1]]]
+g1 = [LibGEOS.Polygon(p) for i = 1:n]
+g2 = [LibGEOS.clone.(g1) for i in 1:nthreads]
+
+LibGEOS.intersects(g1[1], g2[2][2])
+
+g1[1]
+LibGEOS.cloneGeom(g1[1])
+
+ti = 3
+i = 10
+j = 3
+LibGEOS.intersects(g2[ti][i], g2[ti][j], ctx[ti])
+
+GeoInterface.convert.(Ref(LibGEOS), sclift.geometry)
+
+MinistryOfCoolWalks.geos_rtree(sclift.geometry);
+
+@edit GeoInterface.convert(LibGEOS, mls)
 
