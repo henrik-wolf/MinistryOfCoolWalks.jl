@@ -1,3 +1,8 @@
+using TestItemRunner
+
+@run_package_tests verbose = true
+
+#=
 using MinistryOfCoolWalks
 using SpatialIndexing
 using CoolWalksUtils
@@ -17,3 +22,4 @@ include("ShadowIntersection.jl")
 include("Routing.jl")
 include("HexagonalBins.jl")
 include("RoutingMeasures.jl")
+=#
