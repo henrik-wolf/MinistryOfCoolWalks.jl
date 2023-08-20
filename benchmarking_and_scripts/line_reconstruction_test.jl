@@ -83,8 +83,3 @@ begin
     p2 = heatmap(distances, transpose=false, yflip=true, clim=(0, 3))
     plot(p1, p2, size=(1000, 1500), layout=(2, 1))
 end
-
-using Test
-@testitem "stuff" begin
-    @test geomtrait(rebuild_lines(getgeom(lines, 1), 1)) isa LineStringTrait
-end
