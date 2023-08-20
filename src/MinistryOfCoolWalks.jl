@@ -24,7 +24,6 @@ using SparseArrays
 # TODO: Rework HexagonalBins
 # TODO: Rework Routing
 # TODO: Rework RoutingMeasures
-# TODO: Rework ShadowIntersection
 
 const EdgeGeomType = Union{ArchGDAL.IGeometry{ArchGDAL.wkbLineString},ArchGDAL.IGeometry{ArchGDAL.wkbMultiLineString}}
 
@@ -35,7 +34,7 @@ import Graphs: vertices, neighbors
 
 
 
-export add_shadow_intervals!, check_shadow_angle_integrity, npoints
+export add_shadow_intervals!, check_shadow_angle_integrity
 include("ShadowIntersection.jl")
 
 export correct_centerlines!

@@ -189,14 +189,16 @@ end
 """
     add_shadow_intervals!(g, shadows; clear_old_shadows=false)
 
-adds the intersection of the polygons in the `geometry` column of the in dataframe `shadows`  and the geometry in
-the edgeprop `:sg_street_geometry` of graph `g` to `g`. This operation can be repeated on the same graph with various shadows.
+adds the intersection of the polygons in the `:geometry` column of the in dataframe `shadows`  and the geometry in
+the edgeprop `:sg_street_geometry` of graph `g` to `g`.
+
+This operation can be repeated on the same graph with various shadows.
 
 If `clear_old_shadows` is true, all possible, preexisting effects of previous executions of this function are reset. This way, a once loaded
-graph can be reused for all experiments.
+graph can be reused for multiple experiments.
 
-After this operation, all non-helper edges will have the additional property of ':sg_shadow_length'. This value is zero, if there is
-no shadow cast on the edge. If there is a shadow cast on the edge, the edge will have an additional property, ':sg_shadow_geometry', representing
+After this operation, all non-helper edges will have the additional property of `:sg_shadow_length`. This value is zero, if there is
+no shadow cast on the edge. If there is a shadow cast on the edge, the edge will have an additional property, `:sg_shadow_geometry`, representing
 the geometry of the street in the shadow.
 """
 function add_shadow_intervals!(g, shadows; clear_old_shadows=false)
