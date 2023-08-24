@@ -43,20 +43,20 @@ jobs:
             ${{ secrets.TREELOADERS_PRIVATE_KEY }}
             ${{ secrets.FOLIUM_PRIVATE_KEY }}
       - name: Clone CoolWalksUtils.jl
-        run: git clone https://github.com/SuperGrobi/CoolWalksUtils.jl
+        run: git clone https://github.com/SuperGrobi/CoolWalksUtils.jl ../CoolWalksUtils.jl
       - name: Clone CompositeBuildings.jl
-        run: git clone https://github.com/SuperGrobi/CompositeBuildings.jl
+        run: git clone https://github.com/SuperGrobi/CompositeBuildings.jl ../CompositeBuildings.jl
       - name: Clone ShadowGraphs.jl
-        run: git clone https://github.com/SuperGrobi/ShadowGraphs.jl
+        run: git clone https://github.com/SuperGrobi/ShadowGraphs.jl ../ShadowGraphs.jl
       - name: Clone TreeLoaders.jl
-        run: git clone https://github.com/SuperGrobi/TreeLoaders.jl
+        run: git clone https://github.com/SuperGrobi/TreeLoaders.jl ../TreeLoaders.jl
       - name: Clone Folium.jl
-        run: git clone https://github.com/SuperGrobi/Folium.jl
+        run: git clone https://github.com/SuperGrobi/Folium.jl ../Folium.jl
       - name: Install non registered repos
         shell: julia --color=yes --project=. {0}
         run: |
           using Pkg
-          Pkg.add([(; path="./CoolWalksUtils.jl"), (; path="./CompositeBuildings.jl"), (; path="./ShadowGraphs.jl"), (; path="./TreeLoaders.jl"), (; path="./Folium.jl")])
+          Pkg.add([(; path="../CoolWalksUtils.jl"), (; path="../CompositeBuildings.jl"), (; path="../ShadowGraphs.jl"), (; path="../TreeLoaders.jl"), (; path="../Folium.jl")])
       - uses: julia-actions/cache@v1
       - uses: julia-actions/julia-buildpkg@v1
         env:
