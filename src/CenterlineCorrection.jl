@@ -329,7 +329,7 @@ function correct_centerlines!(g, buildings, assumed_lane_width=3.5, scale_factor
     pbar = ProgressBar(street_edges, printing_delay=1.0)
     set_description(pbar, "correcting centerlines")
 
-    @showprogress 1 "correcting centerlines" for edge in pbar
+    for edge in pbar
         # reset all edgeprops to at most the ones set on loading.
         for key in keys(props(g, edge))
             if !(key in [:sg_osm_id, :sg_tags, :sg_street_geometry, :sg_geometry_base, :sg_street_length, :sg_parsing_direction, :sg_helper])
