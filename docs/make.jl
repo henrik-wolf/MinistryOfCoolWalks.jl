@@ -19,6 +19,7 @@ makedocs(;
         "Centerline correction" => "CenterlineCorrection.md",
         "Shadow intersections" => "ShadowIntersection.md",
         "Routing" => "Routing.md",
+        "Routing based Measures" => "RoutingMeasures.md",
         "Hexagonal Binning" => "HexagonalBins.md"
     ]
 )
