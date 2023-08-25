@@ -13,17 +13,20 @@ DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 GeoInterface = "cf35fbd7-0cd7-5166-be24-54bfbe79505f"
 Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
 Hexagons = "a1b4810d-1bce-5fbd-ac56-80944d57a21f"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MetaGraphs = "626554b9-1ddb-594c-aa3c-2596fe9399a5"
+ProgressBars = "49802e3a-d2f1-5c88-81d8-b72133a6f568"
 ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
 Setfield = "efcf1570-3423-57d1-acb7-fd33fddbac46"
 ShadowGraphs = "bb16ec3a-7e9e-4bd8-a580-2befe1914c0f"
 SimpleWeightedGraphs = "47aef6b3-ad0c-573a-a1e2-d07658019622"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 SpatialIndexing = "d4ead438-fe20-5cc5-a293-4fd39a41b74c"
+TestItems = "1c621080-faea-4a02-84b6-bbd5e436b8fe"
 TreeLoaders = "f47e3ccc-e4ba-4197-93dd-e1f87b2e9c3f"
 
 [compat]
-ArchGDAL = "0.9"
+ArchGDAL = "0.10"
 Chain = "0.5"
 DataFrames = "1.4"
 GeoInterface = "1"
@@ -38,6 +41,7 @@ julia = "1.8"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+TestItemRunner = "f8b46487-2199-4994-9208-9a1283c18c0a"
 
 [targets]
-test = ["Test"]
+test = ["Test", "TestItemRunner"]

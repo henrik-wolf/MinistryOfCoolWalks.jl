@@ -1,5 +1,70 @@
 """
+    DEFAULT_LANES_ONEWAY 
 
+default number of lanes in one direction of the street, by `highway` type. Used as a fallback when there is no data available in the `tags`.
+"""
+const DEFAULT_LANES_ONEWAY = Dict(
+    "tertiary" => 1,
+    "residential" => 1,
+    "trunk" => 3,
+    "trunk_link" => 3,
+    "service" => 1,
+    "living_street" => 1,
+    "primary" => 2,
+    "secondary" => 2,
+    "tertiary_link" => 1,
+    "primary_link" => 2,
+    "secondary_link" => 2,
+    "road" => 1
+)
+#=DEFAULT_LANES = Dict(
+    "motorway" => 3,
+    "trunk" => 3,
+    "primary" => 2,
+    "secondary" => 2,
+    "tertiary" => 1,
+    "unclassified" => 1,
+    "residential" => 1,
+    "other" => 1
+)=#
+
+
+"""
+    HIGHWAYS_OFFSET
+
+list of `highway`s, which should be offset to the edge of the street.
+"""
+const HIGHWAYS_OFFSET = [
+    "tertiary",
+    "residential",
+    "trunk",
+    "trunk_link",
+    "service",
+    "living_street",
+    "primary",
+    "secondary",
+    "tertiary_link",
+    "primary_link",
+    "secondary_link",
+    "road"]
+
+
+"""
+    HIGHWAYS_NOT_OFFSET
+
+list of `highway`s, which should not be offset, usually because they can allready considered the center of a bikepath/sidewalk/footpath...
+"""
+const HIGHWAYS_NOT_OFFSET = [
+    "unclassified",
+    "path",
+    "bridleway",
+    "track",
+    "pedestrian",
+    "cycleway"]
+
+
+
+"""
     node_directions(x, y)
 
 calculates the (scaled) direction in which the nodes given by 'x' and 'y' coordinates need to be offset, such that the connections between the nodes remain
@@ -8,13 +73,13 @@ parallel to the original connections. Returns array of 2d vectors.
 function node_directions(x, y)
     # TODO: figure out how to handle endpoints
     # TODO: figure out if we need to detect intersections and trim of resulting loops...
-    deltas = [unit([y[2] - y[1], -(x[2] - x[1])])]
+    deltas = [normalize([y[2] - y[1], -(x[2] - x[1])])]
     # for everything not endpoints, calculate offset direction of edge
     for i in 2:length(x)
-        direction = unit([y[i] - y[i-1], -(x[i] - x[i-1])])
+        direction = normalize([y[i] - y[i-1], -(x[i] - x[i-1])])
         push!(deltas, direction)
     end
-    push!(deltas, unit([y[end] - y[end-1], -(x[end] - x[end-1])]))
+    push!(deltas, normalize([y[end] - y[end-1], -(x[end] - x[end-1])]))
 
     # check if endpoints of line are very close together (form a ring.) if so, make sure endpoints end up at the same location
     distance_start_end = sqrt((x[1] - x[end])^2 + (y[1] - y[end])^2)
@@ -22,7 +87,7 @@ function node_directions(x, y)
         deltas = [[deltas[end]]; deltas[2:end-1]; [deltas[1]]]
     end
 
-    node_directions = unit.(deltas[1:end-1] .+ deltas[2:end])
+    node_directions = normalize.(deltas[1:end-1] .+ deltas[2:end])
     scalar_products = [node_dir' * edge_dir for (node_dir, edge_dir) in zip(node_directions, deltas)]
     node_directions ./= scalar_products
     return node_directions
@@ -40,7 +105,7 @@ is continued using the new configuration. Does account for self intersections cr
 the closed part of the curve will be preserved.
 """
 function offset_line(line, distance)
-    points = [collect(getcoord(p)) for p in getgeom(line)]
+    points = GeoInterface.coordinates(line)  # [collect(getcoord(p)) for p in getgeom(line)]
     x = [i[1] for i in points]
     y = [i[2] for i in points]
 
@@ -102,7 +167,7 @@ function is_selfintersecting(points::AbstractArray)
             c2 = points[j+1]
             # xor
             if switches_side(a, b, c1, c2)
-                inter_point = intersection_distance(a, b, c1, c2)[1]
+                inter_point = intersection_distances(a, b, c1, c2)[1]
                 if 0.0 < inter_point < 1.0
                     return true, i, j, (1 - inter_point) * a + inter_point * b
                 end
@@ -113,8 +178,7 @@ function is_selfintersecting(points::AbstractArray)
 end
 
 #TODO: make this more clevererererer
-""""
-
+"""
     guess_offset_distance(g, edge::Edge, assumed_lane_width=3.5)
 
 estimates the the distance an `edge` of graph `g` has to be offset. Uses the `props` of the edge, the `assumed_lane_width`,
@@ -129,8 +193,8 @@ This is nessecary, due to the existence of the reverseway tags and possible asym
 than in the other.)
 """
 function guess_offset_distance(g, edge::Edge, assumed_lane_width=3.5)
-    edge_tags = get_prop(g, edge, :tags)
-    direction = get_prop(g, edge, :parsing_direction)
+    edge_tags = get_prop(g, edge, :sg_tags)
+    direction = get_prop(g, edge, :sg_parsing_direction)
     return guess_offset_distance(edge_tags, direction, assumed_lane_width)
 end
 
@@ -228,54 +292,52 @@ end
 
 
 """
-
     correct_centerlines!(g, buildings, assumed_lane_width=3.5, scale_factor=1.0)
 
-offsets the centerlines of streets (edges in `g`) stored in the edge prop `:edgegeom_base`, to the estimated edge of the street and stores the
-result in `:edgegeom`.
+offsets the centerlines of streets (edges in `g`) stored in the edge prop `:eg_geometry_base`, to the estimated edge of the street and stores the
+result in `:sg_street_geometry`.
 
 Repeated application of this function deletes all edgeprops added after loading the graph, or the last application of `correct_centerline`, apart from
-`[:osm_id, :tags, :edgegeom, :edgegeom_base, :full_length, :parsing_direction, :helper]`.
+`[:sg_osm_id, :sg_tags, :sg_street_geometry, :sg_geometry_base, :sg_street_length, :sg_parsing_direction, :sg_helper]`.
 
-The information available in the edgeprops `:tags` and `parsing_direction` is used to estimate the width of the street. 
+The information available in the edgeprops `:sg_tags` and `:sg_parsing_direction` is used to estimate the width of the street. 
 If it is not possible to find the offset using these `props`,
 the `assumed_lane_width` is used in conjunction with the gloabal dicts `DEFAULT_LANES_ONEWAY`, `HIGHWAYS_OFFSET` and `HIGHWAYS_NOT_OFFSET`,
-to figure out, how far the edge should be offset. This guess is then multiplied by the `scale_factor`, to get the final distance by wich we
+to figure out how far the edge should be offset. This guess is then multiplied by the `scale_factor`, to get the final distance by wich we
 then offset the line.
 
 If the highway is in `HIGHWAYS_NOT_OFFSET`, it is not going to be moved, no matter the contents of its `tags`. For the full reasoning and
-implementations see the source of `guess_offset_distance`.
+implementations see the source of [`guess_offset_distance`](@ref).
 
 We check if the offset line does intersect more buildings than the original line, to make sure that the assumend foot/bike path does lead through
 a building. If there have new intersections arrisen, we retry the offsetting with `0.9, 0.8, 0.7...` times the guessed offset, while checking and,
 if true breaking, whether the additional intersections vanish.
 
-We also update the locations of the helper nodes, to reflect the offset lines, as well as the ":full_length" prop, to reflect the possible change in length.
+We also update the locations of the helper nodes, to reflect the offset lines, as well as the ":sg_street_length" prop, to reflect the possible change in length.
 """
 function correct_centerlines!(g, buildings, assumed_lane_width=3.5, scale_factor=1.0)
     # project all stuff into local system
-    center_lon = get_prop(g, :center_lon)::Float64
-    center_lat = get_prop(g, :center_lat)::Float64
+    project_local!(g)
+    project_local!(buildings, get_prop(g, :sg_observatory))
 
-    project_local!(buildings.geometry, center_lon, center_lat)
-    project_local!(g, center_lon, center_lat)
-
-    offset_dir = get_prop(g, :offset_dir)
+    offset_dir = get_prop(g, :sg_offset_dir)
     building_tree = build_rtree(buildings.geometry)
 
     nodes_to_set_coords = []
 
-    @showprogress 1 "correcting centerlines" for edge in edges(g)
-        !has_prop(g, edge, :edgegeom_base) && continue  # skip edges without geometry
+    street_edges = collect(filter_edges(g, :sg_geometry_base))
+    pbar = ProgressBar(street_edges, printing_delay=1.0)
+    set_description(pbar, "correcting centerlines")
 
+    for edge in pbar
         # reset all edgeprops to at most the ones set on loading.
         for key in keys(props(g, edge))
-            if !(key in [:osm_id, :tags, :edgegeom, :edgegeom_base, :full_length, :parsing_direction, :helper])
+            if !(key in [:sg_osm_id, :sg_tags, :sg_street_geometry, :sg_geometry_base, :sg_street_length, :sg_parsing_direction, :sg_helper])
                 rem_prop!(g, edge, key)
             end
         end
 
-        linestring = get_prop(g, edge, :edgegeom_base)
+        linestring = get_prop(g, edge, :sg_geometry_base)
 
         # check if some buildings are intersecting from the start
         intersecting_buildings_before = check_building_intersection(building_tree, linestring)
@@ -302,40 +364,40 @@ function correct_centerlines!(g, buildings, assumed_lane_width=3.5, scale_factor
             offset_linestring = ArchGDAL.clone(linestring)
         end
 
-        set_prop!(g, edge, :edgegeom, offset_linestring)
+        set_prop!(g, edge, :sg_street_geometry, offset_linestring)
 
         # update helper locations
-        if get_prop(g, src(edge), :helper) && !get_prop(g, dst(edge), :helper)
+        if get_prop(g, src(edge), :sg_helper) && !get_prop(g, dst(edge), :sg_helper)
             # if only the source is helper (multi edge)
             p = ArchGDAL.pointalongline(offset_linestring, 0.5 * ArchGDAL.geomlength(offset_linestring))
-            set_prop!(g, src(edge), :pointgeom, p)
+            set_prop!(g, src(edge), :sg_geometry, p)
             push!(nodes_to_set_coords, src(edge))
-        elseif get_prop(g, dst(edge), :helper) && !get_prop(g, src(edge), :helper)
+        elseif get_prop(g, dst(edge), :sg_helper) && !get_prop(g, src(edge), :sg_helper)
             # if only the destination is helper (multi edge)
             p = ArchGDAL.pointalongline(offset_linestring, 0.5 * ArchGDAL.geomlength(offset_linestring))
-            set_prop!(g, dst(edge), :pointgeom, p)
+            set_prop!(g, dst(edge), :sg_geometry, p)
             push!(nodes_to_set_coords, dst(edge))
-        elseif get_prop(g, src(edge), :helper) && get_prop(g, dst(edge), :helper)
+        elseif get_prop(g, src(edge), :sg_helper) && get_prop(g, dst(edge), :sg_helper)
             # if both, the source and destination are helpers ((multi-) self edges)
             p1 = ArchGDAL.pointalongline(offset_linestring, 0.1 * ArchGDAL.geomlength(offset_linestring))
-            set_prop!(g, src(edge), :pointgeom, p1)
+            set_prop!(g, src(edge), :sg_geometry, p1)
             push!(nodes_to_set_coords, src(edge))
 
             p2 = ArchGDAL.pointalongline(offset_linestring, 0.6 * ArchGDAL.geomlength(offset_linestring))
-            set_prop!(g, dst(edge), :pointgeom, p2)
+            set_prop!(g, dst(edge), :sg_geometry, p2)
             push!(nodes_to_set_coords, dst(edge))
         end
-        set_prop!(g, edge, :full_length, ArchGDAL.geomlength(offset_linestring))
+        set_prop!(g, edge, :sg_street_length, ArchGDAL.geomlength(offset_linestring))
     end
 
     #project all stuff back
-    project_back!(buildings.geometry)
+    project_back!(buildings)
     project_back!(g)
 
     for vertex in nodes_to_set_coords
-        p = get_prop(g, vertex, :pointgeom)
-        set_prop!(g, vertex, :lon, ArchGDAL.getx(p, 0))
-        set_prop!(g, vertex, :lat, ArchGDAL.gety(p, 0))
+        p = get_prop(g, vertex, :sg_geometry)
+        set_prop!(g, vertex, :sg_lon, ArchGDAL.getx(p, 0))
+        set_prop!(g, vertex, :sg_lat, ArchGDAL.gety(p, 0))
     end
 
     return nothing

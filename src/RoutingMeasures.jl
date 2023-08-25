@@ -1,5 +1,4 @@
 """
-
     early_stopping_dijkstra(g::AbstractGraph, s::U, distmx::AbstractMatrix{T}=weights(g); max_length::T=typemax(T)) where {T<:Real,U<:Integer}
 
 Calculates dijkstras shortest paths, but treats edges which would make the shortest path longer than `max_length` as non-existent.
@@ -71,7 +70,6 @@ end
 
 
 """
-
     to_SimpleWeightedDiGraph(g, distmx)
 
 converts directed graph `g` with weights in `distmx` into `SimpleWeightedDiGraph` with weights from distmx.
@@ -90,7 +88,6 @@ end
 
 #### Our own, low budget implementation of the johnson_shortest_paths because we can not subtract ShadowWeights.
 """
-
     Graphs.johnson_shortest_paths(g::AbstractGraph{U}, distmx::AbstractMatrix{T}; max_length=typemax(T)) where {U<:Integer,T<:ShadowWeight}
 
 version of `johnson_shortest_paths` for `distmx` with `ShadowWeight` as entries, since we can not subtract these.
@@ -103,7 +100,11 @@ function Graphs.johnson_shortest_paths(g::AbstractGraph{U}, distmx::AbstractMatr
     nvg = nv(g)
     dists = Matrix{T}(undef, nvg, nvg)
     parents = Matrix{U}(undef, nvg, nvg)
-    @showprogress 1 "johnson_shortest_paths" for v in vertices(g)
+
+    pbar = ProgressBar(vertices(g), printing_delay=1.0)
+    set_description(pbar, "johnson_shortest_paths")
+
+    Threads.@threads for v in pbar
         dijk_state = early_stopping_dijkstra(g, v; max_length=max_length)
         dists[v, :] = dijk_state.dists
         parents[v, :] = dijk_state.parents
@@ -111,8 +112,14 @@ function Graphs.johnson_shortest_paths(g::AbstractGraph{U}, distmx::AbstractMatr
     return Graphs.JohnsonState(dists, parents)
 end
 
-"""
 
+
+
+
+
+
+
+"""
     betweenness_centralities(state, start)
 
 Calculates the node and edge betweennesses encoded in the dijkstra `state`, with shortest paths from `s`.
@@ -149,7 +156,6 @@ function betweenness_centralities(state::Graphs.DijkstraState, s::T) where {T<:I
 end
 
 """
-
     edges_visited(parents::AbstractArray, reachables::BitArray)
     edges_visited(state::Graphs.DijkstraState, reachables::BitArray)
 
