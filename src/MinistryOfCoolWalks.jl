@@ -33,7 +33,7 @@ include("ShadowIntersection.jl")
 export correct_centerlines!
 include("CenterlineCorrection.jl")
 
-export felt_length, real_length, ShadowWeights, ShadowWeight
+export felt_length, real_length, ShadowWeights, ShadowWeight, SymmetricShadowWeights
 include("Routing.jl")
 
 export hexagonify, hexes2polys, hexagon_histogram, hexagon_area
