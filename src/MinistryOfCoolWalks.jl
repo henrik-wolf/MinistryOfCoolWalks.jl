@@ -4,7 +4,6 @@ using ArchGDAL
 using GeoInterface
 using DataFrames
 using ShadowGraphs
-using CompositeBuildings
 using Graphs
 using MetaGraphs
 using SimpleWeightedGraphs

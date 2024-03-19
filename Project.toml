@@ -6,7 +6,6 @@ version = "0.1.0"
 [deps]
 ArchGDAL = "c9ce4bd3-c3d5-55b8-8973-c0e20141b8c3"
 Chain = "8be319e6-bccf-4806-a6f7-6fae938471bc"
-CompositeBuildings = "a870b4e5-37c8-4ee1-9e3a-8b7ad2177db1"
 CoolWalksUtils = "5abba2a6-77e2-4331-9785-93f3fa89e9c9"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
@@ -23,25 +22,30 @@ SimpleWeightedGraphs = "47aef6b3-ad0c-573a-a1e2-d07658019622"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 SpatialIndexing = "d4ead438-fe20-5cc5-a293-4fd39a41b74c"
 TestItems = "1c621080-faea-4a02-84b6-bbd5e436b8fe"
-TreeLoaders = "f47e3ccc-e4ba-4197-93dd-e1f87b2e9c3f"
 
 [compat]
-ArchGDAL = "0.10"
+ArchGDAL = "=0.10.1"
 Chain = "0.5"
+CoolWalksUtils = "0.1"
 DataFrames = "1.4"
 GeoInterface = "1"
 Graphs = "1"
 Hexagons = "0.2"
 MetaGraphs = "0.7"
+ProgressBars = "1"
 ProgressMeter = "1"
 Setfield = "1"
+ShadowGraphs = "0.1"
 SimpleWeightedGraphs = "1"
 SpatialIndexing = "0.1"
+TestItems = "0.1"
 julia = "1.8"
 
 [extras]
+CompositeBuildings = "a870b4e5-37c8-4ee1-9e3a-8b7ad2177db1"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 TestItemRunner = "f8b46487-2199-4994-9208-9a1283c18c0a"
+TreeLoaders = "f47e3ccc-e4ba-4197-93dd-e1f87b2e9c3f"
 
 [targets]
-test = ["Test", "TestItemRunner"]
+test = ["Test", "TestItemRunner", "CompositeBuildings", "TreeLoaders"]
