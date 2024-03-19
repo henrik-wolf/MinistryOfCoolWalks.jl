@@ -196,6 +196,34 @@ Since we check the maximum values on construction, we can use `unsafe_ShadowWeig
     return unsafe_ShadowWeight(w.a, shadow_length, abs(street_length - shadow_length))
 end
 
+"""
+    SymmetricShadowWeights{T<:Integer,U<:Real} <: AbstractMatrix{ShadowWeight}
+
+Abstract Matrix type with elements of `ShadowWeight`s, usable as weights in graph-algorithms.
+Always returns the smaller weight: `distmx[i,j] = min(distmx[i,j], distmx[j,i])` if both directions exist.
+Otherwise, returns the existing one.
+"""
+struct SymmetricShadowWeights{T<:Integer,U<:Real} <: AbstractMatrix{ShadowWeight}
+    g::MetaDiGraph{T,U}
+    sw::ShadowWeights{T,U}
+end
+
+
+function SymmetricShadowWeights(g::AbstractMetaGraph, a::Number; shadow_source=:sg_shadow_length)
+    sw = ShadowWeights(g, a; shadow_source=shadow_source)
+    return SymmetricShadowWeights(g, sw)
+end
+
+Base.size(x::SymmetricShadowWeights) = size(x.sw)
+
+@inline function Base.getindex(w::SymmetricShadowWeights, u::Integer, v::Integer)
+    if has_edge(w.g, v, u)
+        return min(w.sw[u, v], w.sw[v, u])
+    else
+        return w.sw[u, v]
+    end
+end
+
 
 #### this is testing stuff
 """

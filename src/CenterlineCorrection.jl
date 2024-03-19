@@ -60,7 +60,10 @@ const HIGHWAYS_NOT_OFFSET = [
     "bridleway",
     "track",
     "pedestrian",
-    "cycleway"]
+    "cycleway",
+    "footway",
+    "steps",
+    "corridor"]
 
 
 
