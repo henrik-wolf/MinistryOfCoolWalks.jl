@@ -7,8 +7,6 @@ on:
   pull_request:
     branches:
       - main
-env:
-  JULIA_PKG_USE_CLI_GIT: true
 concurrency:
   # Skip intermediate builds: always.
   # Cancel intermediate builds: only if it is a pull request build.
@@ -39,13 +37,13 @@ jobs:
       - uses: webfactory/ssh-agent@v0.5.4
         with:
             ssh-private-key: ${{ secrets.COOLWALKSREGISTRY_PRIVATE_KEY }}
-      - name: Add CoolWalks Registry
-        shell: julia --color=yes --project=. {0}
-        run: using Pkg; Pkg.Registry.add(RegistrySpec(url="https://github.com/SuperGrobi/CoolWalksRegistry"))
       - uses: julia-actions/cache@v1
       - uses: julia-actions/julia-buildpkg@v1
         env:
           PYTHON: ""
+        with:
+          git_cli: true
+          localregistry: https://github.com/SuperGrobi/CoolWalksRegistry
       - uses: julia-actions/julia-runtest@v1
         env:
           PYTHON: ""
@@ -62,14 +60,13 @@ jobs:
       - uses: webfactory/ssh-agent@v0.5.4
         with:
             ssh-private-key: ${{ secrets.COOLWALKSREGISTRY_PRIVATE_KEY }}
-      - name: Add CoolWalks Registry
-        shell: julia --color=yes --project=. {0}
-        run: using Pkg; Pkg.Registry.add(RegistrySpec(url="https://github.com/SuperGrobi/CoolWalksRegistry"))
       - uses: julia-actions/julia-buildpkg@v1
         env:
           PYTHON: ""
         with:
           project: "docs"
+          git_cli: true
+          localregistry: https://github.com/SuperGrobi/CoolWalksRegistry
       - uses: julia-actions/julia-docdeploy@v1
         env:
           PYTHON: ""
