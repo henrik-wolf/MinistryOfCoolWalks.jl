@@ -180,7 +180,7 @@ function is_selfintersecting(points::AbstractArray)
     return false, 0, 0, [0.0, 0.0]
 end
 
-#TODO: make this more clevererererer
+
 """
     guess_offset_distance(g, edge::Edge, assumed_lane_width=3.5)
 

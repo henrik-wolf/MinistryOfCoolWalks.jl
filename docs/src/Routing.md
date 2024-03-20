@@ -1,9 +1,16 @@
 # Routing
 ## Introduction
-It might be interesting to look shortest paths in out network, using different weights for each edge, based on the length in shade and sun, as well as an external parameter, which essentially weights the length of sunny parts against the length of shaded parts along every edge. Therefore, we introduce our own `Real` subtype, together with a `MetaGraphs.MetaWeights` based Weight-Matrix, which should just work in every `Graphs.jl` algorithm, which takes a Weight Matrix.
+It might be interesting to look shortest paths in out network, using different
+weights for each edge, based on the length in shade and sun, as well as an
+external parameter, which essentially weights the length of sunny parts against
+the length of shaded parts along every edge. Therefore, we introduce our own
+`Real` subtype, together with a `MetaGraphs.MetaWeights` based Weight-Matrix,
+which should just work in every `Graphs.jl` algorithm, which takes a Weight
+Matrix.
 
 ## `ShadowWeight` and conditions on addition and comparison
-To calculate shortest paths, we need a non negative edge weight, a less-than and an addition operation with a (or possibly multiple) `zero` elements.
+To calculate shortest paths, we need a non negative edge weight, a less-than and
+an addition operation with a (or possibly multiple) `zero` elements.
 
 we use:
 

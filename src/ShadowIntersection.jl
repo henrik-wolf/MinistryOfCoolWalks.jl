@@ -139,14 +139,6 @@ function rebuild_lines(lines, min_dist)::EdgeGeomType
         end
     end
 
-    # TODO: this calculates every distance twice... but the syntax is absoulutely gorgeous
-    #=
-    adjacency = [GeoInterface.distance(a,b) < min_dist for a in lines, b in lines]
-    for i in first(size(adjacency))
-        adjacency[i,i] = false
-    end
-    =#
-
     neighbor_graph = SimpleGraph(adjacency)
     component_starts = first.(connected_components(neighbor_graph))
     trees = map(start -> dfs_tree(neighbor_graph, start), component_starts)

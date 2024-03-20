@@ -114,11 +114,6 @@ end
 
 
 
-
-
-
-
-
 """
     betweenness_centralities(state, start)
 

@@ -1,7 +1,6 @@
 # Measures based on routing on Graphs
 ## Introduction
-These are a bunch of helper functions to calculate any kind of measures based on routing on the graph
-Most of this stuff should actually be (and is, but not yet released...) in Graphs.jl.
+These are some helper function to calculate shortest paths and related measures on shadow graphs.
 
 ## API
 

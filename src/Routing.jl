@@ -202,6 +202,9 @@ end
 Abstract Matrix type with elements of `ShadowWeight`s, usable as weights in graph-algorithms.
 Always returns the smaller weight: `distmx[i,j] = min(distmx[i,j], distmx[j,i])` if both directions exist.
 Otherwise, returns the existing one.
+
+This is useful for pedestrian graphs in which pedestrians can switch the side of the street they are walking on
+(without a penalty for the switch) at every intersection. 
 """
 struct SymmetricShadowWeights{T<:Integer,U<:Real} <: AbstractMatrix{ShadowWeight}
     g::MetaDiGraph{T,U}
@@ -214,8 +217,20 @@ function SymmetricShadowWeights(g::AbstractMetaGraph, a::Number; shadow_source=:
     return SymmetricShadowWeights(g, sw)
 end
 
+"""
+    size(x::SymmetricShadowWeights)
+
+The size of a `SymmetricShadowWeights` is the size of the `sw` field.
+"""
 Base.size(x::SymmetricShadowWeights) = size(x.sw)
 
+"""
+    getindex(w::SymmetricShadowWeights, u::Integer, v::Integer)
+
+Get the `SymmetricShadowWeight` at index `u,v`.
+Gets the lengths of edge `u,v` and `v,u` and returns the smaller one, if both exist.
+Otherwise, returns the existing one.
+"""
 @inline function Base.getindex(w::SymmetricShadowWeights, u::Integer, v::Integer)
     if has_edge(w.g, v, u)
         return min(w.sw[u, v], w.sw[v, u])
